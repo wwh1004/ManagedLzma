@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29609.76
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManagedLzma", "ManagedLzma\ManagedLzma.csproj", "{5DFF72AF-7FAC-46F2-B361-0D3102747370}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManagedLzma.Demo", "ManagedLzma.Demo\ManagedLzma.Demo.csproj", "{866CB34A-D3FA-4409-9D2C-A5312A1A8751}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5DFF72AF-7FAC-46F2-B361-0D3102747370}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DFF72AF-7FAC-46F2-B361-0D3102747370}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DFF72AF-7FAC-46F2-B361-0D3102747370}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DFF72AF-7FAC-46F2-B361-0D3102747370}.Release|Any CPU.Build.0 = Release|Any CPU
+		{866CB34A-D3FA-4409-9D2C-A5312A1A8751}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{866CB34A-D3FA-4409-9D2C-A5312A1A8751}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{866CB34A-D3FA-4409-9D2C-A5312A1A8751}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{866CB34A-D3FA-4409-9D2C-A5312A1A8751}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB69E3DF-BAA2-4A75-B07B-3D88A837E450}
+	EndGlobalSection
+EndGlobal
