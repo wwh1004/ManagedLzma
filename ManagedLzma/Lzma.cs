@@ -62,127 +62,79 @@ namespace ManagedLzma {
 			int Progress(ulong inSize, ulong outSize);
 		}
 
-		//public delegate object ISzAlloc_Alloc(object p, long size);
-		//public delegate void ISzAlloc_Free(object p, object address); /* address can be null */
-		public sealed class SzAlloc {
-			public static readonly SzAlloc BigAlloc = new SzAlloc();
-			public static readonly SzAlloc SmallAlloc = new SzAlloc();
-
-			private static readonly Dictionary<long, List<byte[]>> Cache1 = new Dictionary<long, List<byte[]>>();
-			private static readonly Dictionary<long, List<ushort[]>> Cache2 = new Dictionary<long, List<ushort[]>>();
-			private static readonly Dictionary<long, List<uint[]>> Cache3 = new Dictionary<long, List<uint[]>>();
-
-			private SzAlloc() {
-			}
-
-#pragma warning disable CA1822
-#pragma warning disable IDE0060
-			//public T AllocObject<T>(object p)
-			//	where T : class, new() {
-			//	return new T();
-			//}
-
-			public byte[] AllocBytes(object p, long size) {
-				lock (Cache1) {
-					List<byte[]> cache;
-					if (Cache1.TryGetValue(size, out cache) && cache.Count > 0) {
-						byte[] buffer = cache[cache.Count - 1];
-						cache.RemoveAt(cache.Count - 1);
-						return buffer;
-					}
-				}
-
-				return new byte[size];
-			}
-
-			public ushort[] AllocUInt16(object p, long size) {
-				lock (Cache2) {
-					List<ushort[]> cache;
-					if (Cache2.TryGetValue(size, out cache) && cache.Count > 0) {
-						ushort[] buffer = cache[cache.Count - 1];
-						cache.RemoveAt(cache.Count - 1);
-						return buffer;
-					}
-				}
-
-				return new ushort[size];
-			}
-
-			public uint[] AllocUInt32(object p, long size) {
-				lock (Cache3) {
-					List<uint[]> cache;
-					if (Cache3.TryGetValue(size, out cache) && cache.Count > 0) {
-						uint[] buffer = cache[cache.Count - 1];
-						cache.RemoveAt(cache.Count - 1);
-						return buffer;
-					}
-				}
-
-				return new uint[size];
-			}
-
-			//public void FreeObject(object p, object address) {
-			//	// ignore
-			//}
-
-			public void FreeBytes(object p, byte[] buffer) {
-				if (buffer != null) {
-					lock (Cache1) {
-						List<byte[]> cache;
-						if (!Cache1.TryGetValue(buffer.Length, out cache))
-							Cache1.Add(buffer.Length, cache = new List<byte[]>());
-
-						cache.Add(buffer);
-					}
-				}
-			}
-
-			public void FreeUInt16(object p, ushort[] buffer) {
-				if (buffer != null) {
-					lock (Cache2) {
-						List<ushort[]> cache;
-						if (!Cache2.TryGetValue(buffer.Length, out cache))
-							Cache2.Add(buffer.Length, cache = new List<ushort[]>());
-
-						cache.Add(buffer);
-					}
-				}
-			}
-
-			public void FreeUInt32(object p, uint[] buffer) {
-				if (buffer != null) {
-					lock (Cache3) {
-						List<uint[]> cache;
-						if (!Cache3.TryGetValue(buffer.Length, out cache))
-							Cache3.Add(buffer.Length, cache = new List<uint[]>());
-
-						cache.Add(buffer);
-					}
-				}
-			}
-		}
-#pragma warning restore IDE0060
-#pragma warning restore CA1822
-
 		#endregion
 
 		#region Private Methods
 
 		private delegate T Func<T>();
 
-		private static void Memcpy(byte* dst, byte* src, long size) {
-			Memcpy(dst, src, checked((int)size));
-		}
-
-		private static void Memcpy(byte* dst, byte* src, int size) {
-			if (dst.mBuffer == src.mBuffer && src.mOffset < dst.mOffset + size && dst.mOffset < src.mOffset + size)
+		private static void Memcpy(byte* dst, byte* src, uint size) {
+			if ((uint)(dst - src) < size || (uint)(src - dst) < size)
 				throw new InvalidOperationException("memcpy cannot handle overlapping regions correctly");
 
-			Buffer.BlockCopy(src.mBuffer, src.mOffset, dst.mBuffer, dst.mOffset, size);
+			Memcpy32(src, dst, (int)size);
 		}
 
 		private static void Memmove(byte* dst, byte* src, uint size) {
-			Buffer.BlockCopy(src.mBuffer, src.mOffset, dst.mBuffer, dst.mOffset, checked((int)size));
+			if ((uint)(dst - src) >= size && (uint)(src - dst) >= size) {
+				Memcpy(dst, src, size);
+				return;
+			}
+			byte* d = dst;
+			byte* s = src;
+			if (d < s)
+				while (size-- != 0)
+					*d++ = *s++;
+			else {
+				byte* lasts = s + (size - 1);
+				byte* lastd = d + (size - 1);
+				while (size-- != 0)
+					*lastd-- = *lasts--;
+			}
+		}
+
+		// from Microsoft Reference Source
+		private static void Memcpy32(byte* src, byte* dest, int len) {
+			if (len >= 16) {
+				do {
+#if AMD64
+					((long*)dest)[0] = ((long*)src)[0];
+					((long*)dest)[1] = ((long*)src)[1];
+#else
+					((int*)dest)[0] = ((int*)src)[0];
+					((int*)dest)[1] = ((int*)src)[1];
+					((int*)dest)[2] = ((int*)src)[2];
+					((int*)dest)[3] = ((int*)src)[3];
+#endif
+					dest += 16;
+					src += 16;
+				} while ((len -= 16) >= 16);
+			}
+			if (len > 0)  // protection against negative len and optimization for len==16*N
+			{
+				if ((len & 8) != 0) {
+#if AMD64
+					((long*)dest)[0] = ((long*)src)[0];
+#else
+					((int*)dest)[0] = ((int*)src)[0];
+					((int*)dest)[1] = ((int*)src)[1];
+#endif
+					dest += 8;
+					src += 8;
+				}
+				if ((len & 4) != 0) {
+					((int*)dest)[0] = ((int*)src)[0];
+					dest += 4;
+					src += 4;
+				}
+				if ((len & 2) != 0) {
+					((short*)dest)[0] = ((short*)src)[0];
+					dest += 2;
+					src += 2;
+				}
+				if ((len & 1) != 0)
+					*dest++ = *src++;
+			}
 		}
 
 		private static T[] NewArray<T>(int sz1, Func<T> creator) {
