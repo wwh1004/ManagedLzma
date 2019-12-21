@@ -137,7 +137,7 @@ namespace ManagedLzma {
 			#region Variables
 
 			internal CLzmaProps mProp = new CLzmaProps();
-			internal ushort[] mProbs;
+			internal ushort* mProbs;
 			internal byte* mDic;
 			internal byte* mBuf;
 			internal uint mRange, mCode;
@@ -152,7 +152,7 @@ namespace ManagedLzma {
 			internal bool mNeedInitState;
 			internal uint mNumProbs;
 			internal uint mTempBufSize;
-			internal byte[] mTempBuf = new byte[LZMA_REQUIRED_INPUT_MAX];
+			internal byte* mTempBuf = SzAlloc.AllocBytes(LZMA_REQUIRED_INPUT_MAX);
 
 			#endregion
 
@@ -190,36 +190,36 @@ namespace ManagedLzma {
               SZ_ERROR_UNSUPPORTED - Unsupported properties
             */
 
-			public int LzmaDec_AllocateProbs(byte* props, uint propsSize, SzAlloc alloc) {
+			public int LzmaDec_AllocateProbs(byte* props, uint propsSize) {
 				int res;
 				CLzmaProps propNew = new CLzmaProps();
 				if ((res = propNew.LzmaProps_Decode(props, propsSize)) != SZ_OK) return res;
-				if ((res = LzmaDec_AllocateProbs2(propNew, alloc)) != SZ_OK) return res;
+				if ((res = LzmaDec_AllocateProbs2(propNew)) != SZ_OK) return res;
 				mProp = new CLzmaProps(propNew);
 				return SZ_OK;
 			}
 
-			public void LzmaDec_FreeProbs(SzAlloc alloc) {
-				alloc.FreeUInt16(alloc, mProbs);
+			public void LzmaDec_FreeProbs() {
+				SzAlloc.Free(mProbs);
 				mProbs = null;
 			}
 
-			public int LzmaDec_Allocate(byte* props, uint propsSize, SzAlloc alloc) {
+			public int LzmaDec_Allocate(byte* props, uint propsSize) {
 				CLzmaProps propNew = new CLzmaProps();
 
 				int res;
 				if ((res = propNew.LzmaProps_Decode(props, propsSize)) != SZ_OK)
 					return res;
 
-				if ((res = LzmaDec_AllocateProbs2(propNew, alloc)) != SZ_OK)
+				if ((res = LzmaDec_AllocateProbs2(propNew)) != SZ_OK)
 					return res;
 
 				long dicBufSize = propNew.mDicSize;
 				if (mDic == null || dicBufSize != mDicBufSize) {
-					LzmaDec_FreeDict(alloc);
-					mDic = alloc.AllocBytes(alloc, dicBufSize);
+					LzmaDec_FreeDict();
+					mDic = SzAlloc.AllocBytes((uint)dicBufSize);
 					if (mDic == null) {
-						LzmaDec_FreeProbs(alloc);
+						LzmaDec_FreeProbs();
 						return SZ_ERROR_MEM;
 					}
 				}
@@ -229,9 +229,9 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			public void LzmaDec_Free(SzAlloc alloc) {
-				LzmaDec_FreeProbs(alloc);
-				LzmaDec_FreeDict(alloc);
+			public void LzmaDec_Free() {
+				LzmaDec_FreeProbs();
+				LzmaDec_FreeDict();
 			}
 
 			/* ---------- Dictionary Interface ---------- */
@@ -335,7 +335,7 @@ namespace ManagedLzma {
 							ELzmaDummy dummyRes = LzmaDec_TryDummy(src, inSize);
 
 							if (dummyRes == ELzmaDummy.DUMMY_ERROR) {
-								Memcpy(mTempBuf, src, inSize);
+								Memcpy(mTempBuf, src, (uint)inSize);
 								mTempBufSize = (uint)inSize;
 								srcLen += inSize;
 								status = ELzmaStatus.LZMA_STATUS_NEEDS_MORE_INPUT;
@@ -449,7 +449,7 @@ namespace ManagedLzma {
 					inSize -= inSizeCur;
 					srcLen += inSizeCur;
 					outSizeCur = mDicPos - dicPos;
-					Memcpy(dest, mDic + dicPos, outSizeCur);
+					Memcpy(dest, mDic + dicPos, (uint)outSizeCur);
 					dest += outSizeCur;
 					outSize -= outSizeCur;
 					destLen += outSizeCur;
@@ -1028,16 +1028,16 @@ namespace ManagedLzma {
 				mNeedInitState = false;
 			}
 
-			private void LzmaDec_FreeDict(SzAlloc alloc) {
-				alloc.FreeBytes(alloc, mDic.mBuffer);
+			private void LzmaDec_FreeDict() {
+				SzAlloc.Free(mDic);
 				mDic = null;
 			}
 
-			private int LzmaDec_AllocateProbs2(CLzmaProps propNew, SzAlloc alloc) {
+			private int LzmaDec_AllocateProbs2(CLzmaProps propNew) {
 				uint numProbs = LzmaProps_GetNumProbs(propNew);
 				if (mProbs == null || numProbs != mNumProbs) {
-					LzmaDec_FreeProbs(alloc);
-					mProbs = alloc.AllocUInt16(alloc, numProbs);
+					LzmaDec_FreeProbs();
+					mProbs = SzAlloc.AllocUInt16(numProbs);
 					mNumProbs = numProbs;
 					if (mProbs == null)
 						return SZ_ERROR_MEM;
@@ -1048,6 +1048,12 @@ namespace ManagedLzma {
 			private static uint LzmaProps_GetNumProbs(CLzmaProps p) {
 				return LZMA_BASE_SIZE + (LZMA_LIT_SIZE << (p.mLC + p.mLP));
 			}
+
+			~CLzmaDec() {
+				SzAlloc.Free(mTempBuf);
+				mTempBuf = null;
+			}
+
 			#endregion
 
 			#region Macros
@@ -1239,7 +1245,7 @@ namespace ManagedLzma {
 		  SZ_ERROR_INPUT_EOF - It needs more bytes in input buffer (src).
 		*/
 
-		public static int LzmaDecode(byte* dest, ref long destLen, byte* src, ref long srcLen, byte* propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status, SzAlloc alloc) {
+		public static int LzmaDecode(byte* dest, ref long destLen, byte* src, ref long srcLen, byte* propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status) {
 			long outSize = destLen;
 			long inSize = srcLen;
 			destLen = 0;
@@ -1253,7 +1259,7 @@ namespace ManagedLzma {
 			decoder.LzmaDec_Construct();
 
 			int res;
-			if ((res = decoder.LzmaDec_AllocateProbs(propData, propSize, alloc)) != SZ_OK)
+			if ((res = decoder.LzmaDec_AllocateProbs(propData, propSize)) != SZ_OK)
 				return res;
 
 			decoder.mDic = dest;
@@ -1268,7 +1274,7 @@ namespace ManagedLzma {
 			if (res == SZ_OK && status == ELzmaStatus.LZMA_STATUS_NEEDS_MORE_INPUT)
 				res = SZ_ERROR_INPUT_EOF;
 
-			decoder.LzmaDec_FreeProbs(alloc);
+			decoder.LzmaDec_FreeProbs();
 			return res;
 		}
 
@@ -1295,7 +1301,7 @@ namespace ManagedLzma {
 			byte* dest, ref long destLen,
 			byte* src, ref long srcLen,
 			byte* props, long propsSize) {
-			return LzmaDecode(dest, ref destLen, src, ref srcLen, props, (uint)propsSize, ELzmaFinishMode.LZMA_FINISH_ANY, out _, SzAlloc.SmallAlloc);
+			return LzmaDecode(dest, ref destLen, src, ref srcLen, props, (uint)propsSize, ELzmaFinishMode.LZMA_FINISH_ANY, out _);
 		}
 	}
 }

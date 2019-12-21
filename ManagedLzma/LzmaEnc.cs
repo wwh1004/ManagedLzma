@@ -256,9 +256,9 @@ namespace ManagedLzma {
 
 			public ushort mChoice;
 			public ushort mChoice2;
-			public ushort[] mLow = new ushort[CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumLowBits];
-			public ushort[] mMid = new ushort[CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumMidBits];
-			public ushort[] mHigh = new ushort[CLzmaEnc.kLenNumHighSymbols];
+			public ushort* mLow = SzAlloc.AllocUInt16(CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumLowBits);
+			public ushort* mMid = SzAlloc.AllocUInt16(CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumMidBits);
+			public ushort* mHigh = SzAlloc.AllocUInt16(CLzmaEnc.kLenNumHighSymbols);
 
 			#endregion
 
@@ -266,11 +266,11 @@ namespace ManagedLzma {
 			public CLenEnc(CLenEnc other) {
 				mChoice = other.mChoice;
 				mChoice2 = other.mChoice2;
-				for (int i = 0; i < mLow.Length; i++)
+				for (int i = 0; i < CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumLowBits; i++)
 					mLow[i] = other.mLow[i];
-				for (int i = 0; i < mMid.Length; i++)
+				for (int i = 0; i < CLzmaEnc.LZMA_NUM_PB_STATES_MAX << CLzmaEnc.kLenNumMidBits; i++)
 					mMid[i] = other.mMid[i];
-				for (int i = 0; i < mHigh.Length; i++)
+				for (int i = 0; i < CLzmaEnc.kLenNumHighSymbols; i++)
 					mHigh[i] = other.mHigh[i];
 			}
 
@@ -288,22 +288,22 @@ namespace ManagedLzma {
 			internal void LenEnc_Encode(CRangeEnc rc, uint symbol, uint posState) {
 				if (symbol < CLzmaEnc.kLenNumLowSymbols) {
 					rc.RangeEnc_EncodeBit(ref mChoice, 0);
-					CLzmaEnc.RcTree_Encode(rc, P.From(mLow, posState << CLzmaEnc.kLenNumLowBits), CLzmaEnc.kLenNumLowBits, symbol);
+					CLzmaEnc.RcTree_Encode(rc, ref mLow[posState << CLzmaEnc.kLenNumLowBits], CLzmaEnc.kLenNumLowBits, symbol);
 				}
 				else {
 					rc.RangeEnc_EncodeBit(ref mChoice, 1);
 					if (symbol < CLzmaEnc.kLenNumLowSymbols + CLzmaEnc.kLenNumMidSymbols) {
 						rc.RangeEnc_EncodeBit(ref mChoice2, 0);
-						CLzmaEnc.RcTree_Encode(rc, P.From(mMid, posState << CLzmaEnc.kLenNumMidBits), CLzmaEnc.kLenNumMidBits, symbol - CLzmaEnc.kLenNumLowSymbols);
+						CLzmaEnc.RcTree_Encode(rc, ref mMid[posState << CLzmaEnc.kLenNumMidBits], CLzmaEnc.kLenNumMidBits, symbol - CLzmaEnc.kLenNumLowSymbols);
 					}
 					else {
 						rc.RangeEnc_EncodeBit(ref mChoice2, 1);
-						CLzmaEnc.RcTree_Encode(rc, mHigh, CLzmaEnc.kLenNumHighBits, symbol - CLzmaEnc.kLenNumLowSymbols - CLzmaEnc.kLenNumMidSymbols);
+						CLzmaEnc.RcTree_Encode(rc, ref mHigh[0], CLzmaEnc.kLenNumHighBits, symbol - CLzmaEnc.kLenNumLowSymbols - CLzmaEnc.kLenNumMidSymbols);
 					}
 				}
 			}
 
-			internal void LenEnc_SetPrices(uint posState, uint numSymbols, uint* prices, uint* probPrices) {
+			internal void LenEnc_SetPrices(uint posState, uint numSymbols, uint* prices, uint[] probPrices) {
 				uint a0 = CLzmaEnc.GET_PRICE_0(probPrices, mChoice);
 				uint a1 = CLzmaEnc.GET_PRICE_1(probPrices, mChoice);
 				uint b0 = a1 + CLzmaEnc.GET_PRICE_0(probPrices, mChoice2);
@@ -313,15 +313,15 @@ namespace ManagedLzma {
 				for (; i < CLzmaEnc.kLenNumLowSymbols; i++) {
 					if (i >= numSymbols)
 						return;
-					prices[i] = a0 + CLzmaEnc.RcTree_GetPrice(P.From(mLow, posState << CLzmaEnc.kLenNumLowBits), CLzmaEnc.kLenNumLowBits, i, probPrices);
+					prices[i] = a0 + CLzmaEnc.RcTree_GetPrice(ref mLow[posState << CLzmaEnc.kLenNumLowBits], CLzmaEnc.kLenNumLowBits, i, probPrices);
 				}
 				for (; i < CLzmaEnc.kLenNumLowSymbols + CLzmaEnc.kLenNumMidSymbols; i++) {
 					if (i >= numSymbols)
 						return;
-					prices[i] = b0 + CLzmaEnc.RcTree_GetPrice(P.From(mMid, posState << CLzmaEnc.kLenNumMidBits), CLzmaEnc.kLenNumMidBits, i - CLzmaEnc.kLenNumLowSymbols, probPrices);
+					prices[i] = b0 + CLzmaEnc.RcTree_GetPrice(ref mMid[posState << CLzmaEnc.kLenNumMidBits], CLzmaEnc.kLenNumMidBits, i - CLzmaEnc.kLenNumLowSymbols, probPrices);
 				}
 				for (; i < numSymbols; i++)
-					prices[i] = b1 + CLzmaEnc.RcTree_GetPrice(mHigh, CLzmaEnc.kLenNumHighBits, i - (CLzmaEnc.kLenNumLowSymbols + CLzmaEnc.kLenNumMidSymbols), probPrices);
+					prices[i] = b1 + CLzmaEnc.RcTree_GetPrice(ref mHigh[0], CLzmaEnc.kLenNumHighBits, i - (CLzmaEnc.kLenNumLowSymbols + CLzmaEnc.kLenNumMidSymbols), probPrices);
 			}
 		}
 
@@ -354,17 +354,18 @@ namespace ManagedLzma {
 					mCounters[i] = other.mCounters[i];
 			}
 
-			private void LenPriceEnc_UpdateTable(uint posState, uint* probPrices) {
-				LenEnc_SetPrices(posState, mTableSize, mPrices[posState], probPrices);
+			private void LenPriceEnc_UpdateTable(uint posState, uint[] probPrices) {
+				fixed (uint* p = mPrices[posState])
+					LenEnc_SetPrices(posState, mTableSize, p, probPrices);
 				mCounters[posState] = mTableSize;
 			}
 
-			internal void LenPriceEnc_UpdateTables(uint numPosStates, uint* probPrices) {
+			internal void LenPriceEnc_UpdateTables(uint numPosStates, uint[] probPrices) {
 				for (uint posState = 0; posState < numPosStates; posState++)
 					LenPriceEnc_UpdateTable(posState, probPrices);
 			}
 
-			internal void LenEnc_Encode2(CRangeEnc rc, uint symbol, uint posState, bool updatePrice, uint* probPrices) {
+			internal void LenEnc_Encode2(CRangeEnc rc, uint symbol, uint posState, bool updatePrice, uint[] probPrices) {
 				LenEnc_Encode(rc, symbol, posState);
 
 				if (updatePrice) {
@@ -405,9 +406,9 @@ namespace ManagedLzma {
 				return mProcessed + (uint)(mBuf - mBufBase) + mCacheSize;
 			}
 
-			internal bool RangeEnc_Alloc(SzAlloc alloc) {
+			internal bool RangeEnc_Alloc() {
 				if (mBufBase == null) {
-					mBufBase = alloc.AllocBytes(alloc, kBufferSize);
+					mBufBase = SzAlloc.AllocBytes(kBufferSize);
 					if (mBufBase == null)
 						return false;
 
@@ -417,8 +418,8 @@ namespace ManagedLzma {
 				return true;
 			}
 
-			internal void RangeEnc_Free(SzAlloc alloc) {
-				alloc.FreeBytes(alloc, mBufBase.mBuffer);
+			internal void RangeEnc_Free() {
+				SzAlloc.Free(mBufBase);
 				mBufBase = null;
 			}
 
@@ -485,7 +486,7 @@ namespace ManagedLzma {
 				while (numBits != 0);
 			}
 
-			internal void RangeEnc_EncodeBit(ushort* prob, uint symbol) { RangeEnc_EncodeBit(ref prob.mBuffer[prob.mOffset], symbol); }
+			internal void RangeEnc_EncodeBit(ushort* prob, uint symbol) { RangeEnc_EncodeBit(ref prob[0], symbol); }
 			internal void RangeEnc_EncodeBit(ref ushort prob, uint symbol) {
 				uint temp = prob;
 
@@ -512,7 +513,7 @@ namespace ManagedLzma {
 		internal sealed class CSaveState {
 			#region Variables
 
-			public ushort[] mLitProbs;
+			public ushort* mLitProbs;
 
 			public ushort[][] mIsMatch = NewArray<ushort>(CLzmaEnc.kNumStates, CLzmaEnc.LZMA_NUM_PB_STATES_MAX);
 			public ushort[] mIsRep = new ushort[CLzmaEnc.kNumStates];
@@ -561,7 +562,7 @@ namespace ManagedLzma {
 			public uint mCyclicBufferSize; // it must be = (historySize + 1)
 
 			public uint mMatchMaxLen;
-			public uint[] mHash;
+			public uint* mHash;
 			public uint* mSon;
 			public uint mHashMask;
 			public uint mCutValue;
@@ -620,15 +621,15 @@ namespace ManagedLzma {
 					MatchFinder_ReadBlock();
 			}
 
-			private void LzInWindow_Free(SzAlloc alloc) {
+			private void LzInWindow_Free() {
 				if (!mDirectInput) {
-					alloc.FreeBytes(alloc, mBufferBase.mBuffer);
+					SzAlloc.Free(mBufferBase);
 					mBufferBase = null;
 				}
 			}
 
 			// keepSizeBefore + keepSizeAfter + keepSizeReserv must be < 4G)
-			private bool LzInWindow_Create(uint keepSizeReserv, SzAlloc alloc) {
+			private bool LzInWindow_Create(uint keepSizeReserv) {
 				uint blockSize = mKeepSizeBefore + mKeepSizeAfter + keepSizeReserv;
 
 				if (mDirectInput) {
@@ -637,9 +638,9 @@ namespace ManagedLzma {
 				}
 
 				if (mBufferBase == null || mBlockSize != blockSize) {
-					LzInWindow_Free(alloc);
+					LzInWindow_Free();
 					mBlockSize = blockSize;
-					mBufferBase = alloc.AllocBytes(alloc, blockSize);
+					mBufferBase = SzAlloc.AllocBytes(blockSize);
 				}
 
 				return mBufferBase != null;
@@ -705,30 +706,22 @@ namespace ManagedLzma {
 				MatchFinder_ReadBlock();
 			}
 
-			private void MatchFinder_FreeThisClassMemory(SzAlloc alloc) {
-				alloc.FreeUInt32(alloc, mHash);
+			private void MatchFinder_FreeThisClassMemory() {
+				SzAlloc.Free(mHash);
 				mHash = null;
 			}
 
-			internal void MatchFinder_Free(SzAlloc alloc) {
-				MatchFinder_FreeThisClassMemory(alloc);
-				LzInWindow_Free(alloc);
-			}
-
-			private static uint[] AllocRefs(uint num, SzAlloc alloc) {
-				long sizeInBytes = (long)num * sizeof(uint);
-				if (sizeInBytes / sizeof(uint) != num)
-					return null;
-
-				return alloc.AllocUInt32(alloc, num);
+			internal void MatchFinder_Free() {
+				MatchFinder_FreeThisClassMemory();
+				LzInWindow_Free();
 			}
 
 			// Conditions:
 			//     historySize <= 3 GB
 			//     keepAddBufferBefore + matchMaxLen + keepAddBufferAfter < 511MB
-			internal bool MatchFinder_Create(uint historySize, uint keepAddBufferBefore, uint matchMaxLen, uint keepAddBufferAfter, SzAlloc alloc) {
+			internal bool MatchFinder_Create(uint historySize, uint keepAddBufferBefore, uint matchMaxLen, uint keepAddBufferAfter) {
 				if (historySize > kMaxHistorySize) {
-					MatchFinder_Free(alloc);
+					MatchFinder_Free();
 					return false;
 				}
 
@@ -741,7 +734,7 @@ namespace ManagedLzma {
 				mKeepSizeAfter = matchMaxLen + keepAddBufferAfter;
 
 				// we need one additional byte, since we use MoveBlock after pos++ and before dictionary using
-				if (LzInWindow_Create(sizeReserv, alloc)) {
+				if (LzInWindow_Create(sizeReserv)) {
 					uint newCyclicBufferSize = historySize + 1;
 					uint hs;
 
@@ -794,17 +787,17 @@ namespace ManagedLzma {
 						if (mHash != null && prevSize == newSize)
 							return true;
 
-						MatchFinder_FreeThisClassMemory(alloc);
+						MatchFinder_FreeThisClassMemory();
 
-						mHash = AllocRefs(newSize, alloc);
+						mHash = SzAlloc.AllocUInt32(newSize);
 						if (mHash != null) {
-							mSon = P.From(mHash, mHashSizeSum);
+							mSon = mHash + mHashSizeSum;
 							return true;
 						}
 					}
 				}
 
-				MatchFinder_Free(alloc);
+				MatchFinder_Free();
 				return false;
 			}
 
@@ -831,9 +824,8 @@ namespace ManagedLzma {
 			}
 
 			internal void MatchFinder_Init() {
-				//for(uint i = 0; i < mHashSizeSum; i++)
-				//    mHash[i] = kEmptyHashValue;
-				Array.Clear(mHash, 0, (int)mHashSizeSum);
+				for (uint i = 0; i < mHashSizeSum; i++)
+					mHash[i] = kEmptyHashValue;
 
 				mCyclicBufferPos = 0;
 				mBuffer = mBufferBase;
@@ -1586,7 +1578,7 @@ namespace ManagedLzma {
 				while (symbol < 0x10000);
 			}
 
-			internal static void LzmaEnc_InitPriceTables(uint* probPrices) {
+			internal static void LzmaEnc_InitPriceTables(uint[] probPrices) {
 				for (uint i = (1 << kNumMoveReducingBits) / 2; i < kBitModelTotal; i += 1 << kNumMoveReducingBits) {
 					const int kCyclesBits = kNumBitPriceShiftBits;
 
@@ -1605,7 +1597,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			internal static uint GET_PRICE(uint* probPrices, ushort prob, uint symbol) {
+			internal static uint GET_PRICE(uint[] probPrices, ushort prob, uint symbol) {
 				//return symbol == 0
 				//    ? GET_PRICE_0(probPrices, prob)
 				//    : GET_PRICE_1(probPrices, prob);
@@ -1613,83 +1605,89 @@ namespace ManagedLzma {
 				return probPrices[(prob ^ ((-(int)symbol) & (kBitModelTotal - 1))) >> kNumMoveReducingBits];
 			}
 
-			internal static uint GET_PRICE_0(uint* probPrices, ushort prob) {
+			internal static uint GET_PRICE_0(uint[] probPrices, ushort prob) {
 				return probPrices[prob >> kNumMoveReducingBits];
 			}
 
-			internal static uint GET_PRICE_1(uint* probPrices, ushort prob) {
+			internal static uint GET_PRICE_1(uint[] probPrices, ushort prob) {
 				return probPrices[(prob ^ (kBitModelTotal - 1)) >> kNumMoveReducingBits];
 			}
 
-			private static uint LitEnc_GetPrice(ushort* probs, uint symbol, uint* probPrices) {
+			private static uint LitEnc_GetPrice(ref ushort probs, uint symbol, uint[] probPrices) {
 				uint price = 0;
 				symbol |= 0x100;
-				do {
-					price += GET_PRICE(probPrices, probs[symbol >> 8], (symbol >> 7) & 1);
-					symbol <<= 1;
-				}
-				while (symbol < 0x10000);
+				fixed (ushort* p_probs = &probs)
+					do {
+						price += GET_PRICE(probPrices, p_probs[symbol >> 8], (symbol >> 7) & 1);
+						symbol <<= 1;
+					}
+					while (symbol < 0x10000);
 				return price;
 			}
 
-			private static uint LitEnc_GetPriceMatched(ushort* probs, uint symbol, uint matchByte, uint* probPrices) {
+			private static uint LitEnc_GetPriceMatched(ref ushort probs, uint symbol, uint matchByte, uint[] probPrices) {
 				uint price = 0;
 				uint offs = 0x100;
 				symbol |= 0x100;
-				do {
-					matchByte <<= 1;
-					price += GET_PRICE(probPrices, probs[offs + (matchByte & offs) + (symbol >> 8)], (symbol >> 7) & 1);
-					symbol <<= 1;
-					offs &= ~(matchByte ^ symbol);
-				}
-				while (symbol < 0x10000);
+				fixed (ushort* p_probs = &probs)
+					do {
+						matchByte <<= 1;
+						price += GET_PRICE(probPrices, p_probs[offs + (matchByte & offs) + (symbol >> 8)], (symbol >> 7) & 1);
+						symbol <<= 1;
+						offs &= ~(matchByte ^ symbol);
+					}
+					while (symbol < 0x10000);
 				return price;
 			}
 
-			internal static void RcTree_Encode(CRangeEnc rc, ushort* probs, int numBitLevels, uint symbol) {
+			internal static void RcTree_Encode(CRangeEnc rc, ref ushort probs, int numBitLevels, uint symbol) {
 				uint m = 1;
-				for (int i = numBitLevels; i != 0;) {
-					i--;
-					uint bit = (symbol >> i) & 1;
-					rc.RangeEnc_EncodeBit(probs + m, bit);
-					m = (m << 1) | bit;
-				}
+				fixed (ushort* p_probs = &probs)
+					for (int i = numBitLevels; i != 0;) {
+						i--;
+						uint bit = (symbol >> i) & 1;
+						rc.RangeEnc_EncodeBit(p_probs + m, bit);
+						m = (m << 1) | bit;
+					}
 			}
 
-			private static void RcTree_ReverseEncode(CRangeEnc rc, ushort* probs, int numBitLevels, uint symbol) {
+			private static void RcTree_ReverseEncode(CRangeEnc rc, ref ushort probs, int numBitLevels, uint symbol) {
 				uint m = 1;
-				for (int i = 0; i < numBitLevels; i++) {
-					uint bit = symbol & 1;
-					rc.RangeEnc_EncodeBit(probs + m, bit);
-					m = (m << 1) | bit;
-					symbol >>= 1;
-				}
+				fixed (ushort* p_probs = &probs)
+					for (int i = 0; i < numBitLevels; i++) {
+						uint bit = symbol & 1;
+						rc.RangeEnc_EncodeBit(p_probs + m, bit);
+						m = (m << 1) | bit;
+						symbol >>= 1;
+					}
 			}
 
-			internal static uint RcTree_GetPrice(ushort* probs, int numBitLevels, uint symbol, uint* ProbPrices) {
+			internal static uint RcTree_GetPrice(ref ushort probs, int numBitLevels, uint symbol, uint[] ProbPrices) {
 				uint price = 0;
 				symbol |= 1u << numBitLevels;
-				while (symbol != 1) {
-					price += GET_PRICE(ProbPrices, probs[symbol >> 1], symbol & 1);
-					symbol >>= 1;
-				}
+				fixed (ushort* p_probs = &probs)
+					while (symbol != 1) {
+						price += GET_PRICE(ProbPrices, p_probs[symbol >> 1], symbol & 1);
+						symbol >>= 1;
+					}
 				return price;
 			}
 
-			private static uint RcTree_ReverseGetPrice(ushort* probs, int numBitLevels, uint symbol, uint* probPrices) {
+			private static uint RcTree_ReverseGetPrice(ref ushort probs, int numBitLevels, uint symbol, uint[] probPrices) {
 				uint price = 0;
 				uint m = 1;
-				for (int i = numBitLevels; i != 0; i--) {
-					uint bit = symbol & 1;
-					symbol >>= 1;
-					price += GET_PRICE(probPrices, probs[m], bit);
-					m = (m << 1) | bit;
-				}
+				fixed (ushort* p_probs = &probs)
+					for (int i = numBitLevels; i != 0; i--) {
+						uint bit = symbol & 1;
+						symbol >>= 1;
+						price += GET_PRICE(probPrices, p_probs[m], bit);
+						m = (m << 1) | bit;
+					}
 				return price;
 			}
 
 			private ushort* LIT_PROBS(uint pos, byte prevByte) {
-				return P.From(mLitProbs, (((pos & mLpMask) << mLC) + ((uint)prevByte >> (8 - mLC))) * 0x300);
+				return mLitProbs + (((pos & mLpMask) << mLC) + ((uint)prevByte >> (8 - mLC))) * 0x300;
 			}
 
 			private static bool ChangePair(uint smallDist, uint bigDist) {
@@ -1707,7 +1705,7 @@ namespace ManagedLzma {
 						mOverflow = true;
 					}
 
-					Lzma.Memcpy(mData, data, size);
+					Lzma.Memcpy(mData, data, (uint)size);
 
 					mRem -= size;
 					mData += size;
@@ -1754,7 +1752,7 @@ namespace ManagedLzma {
 			internal uint mLpMask;
 			internal uint mPbMask;
 
-			internal ushort[] mLitProbs;
+			internal ushort* mLitProbs;
 
 			internal ushort[][] mIsMatch = NewArray<ushort>(kNumStates, LZMA_NUM_PB_STATES_MAX);
 			internal ushort[] mIsRep = new ushort[kNumStates];
@@ -1796,10 +1794,10 @@ namespace ManagedLzma {
 				return new CLzmaEnc();
 			}
 
-			public void LzmaEnc_Destroy(SzAlloc alloc, SzAlloc allocBig) {
-				mMatchFinderBase.MatchFinder_Free(allocBig);
-				LzmaEnc_FreeLits(alloc);
-				mRC.RangeEnc_Free(alloc);
+			public void LzmaEnc_Destroy() {
+				mMatchFinderBase.MatchFinder_Free();
+				LzmaEnc_FreeLits();
+				mRC.RangeEnc_Free();
 			}
 
 			public int LzmaEnc_SetProps(CLzmaEncProps props2) {
@@ -1868,15 +1866,15 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			public int LzmaEnc_Encode(ISeqOutStream outStream, ISeqInStream inStream, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+			public int LzmaEnc_Encode(ISeqOutStream outStream, ISeqInStream inStream, ICompressProgress progress) {
 				int res;
-				if ((res = LzmaEnc_Prepare(outStream, inStream, alloc, allocBig)) != SZ_OK)
+				if ((res = LzmaEnc_Prepare(outStream, inStream)) != SZ_OK)
 					return res;
 
 				return LzmaEnc_Encode2(progress);
 			}
 
-			public int LzmaEnc_MemEncode(byte* dest, ref long destLen, byte* src, long srcLen, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+			public int LzmaEnc_MemEncode(byte* dest, ref long destLen, byte* src, long srcLen, bool writeEndMark, ICompressProgress progress) {
 				CSeqOutStreamBuf outStream = new CSeqOutStreamBuf();
 
 				LzmaEnc_SetInputBuf(src, srcLen);
@@ -1889,7 +1887,7 @@ namespace ManagedLzma {
 
 				mRC.mOutStream = outStream;
 
-				int res = LzmaEnc_MemPrepare(src, srcLen, 0, alloc, allocBig);
+				int res = LzmaEnc_MemPrepare(src, srcLen, 0);
 				if (res == SZ_OK)
 					res = LzmaEnc_Encode2(progress);
 
@@ -1931,7 +1929,7 @@ namespace ManagedLzma {
 				Memcpy(mSaveState.mPosEncoders, mPosEncoders, (kNumFullDistances - kEndPosModelIndex) * 2);
 				Memcpy(mSaveState.mPosAlignEncoder, mPosAlignEncoder, (1 << kNumAlignBits) * 2);
 				mSaveState.mReps = mReps;
-				Memcpy(mSaveState.mLitProbs, mLitProbs, (0x300 << mLcLp) * 2);
+				Lzma.Memcpy((byte*)mSaveState.mLitProbs, (byte*)mLitProbs, (0x300u << mLcLp) * 2);
 			}
 
 			internal void LzmaEnc_RestoreState() {
@@ -1954,12 +1952,12 @@ namespace ManagedLzma {
 				Memcpy(mPosEncoders, mSaveState.mPosEncoders, (kNumFullDistances - kEndPosModelIndex) * 2);
 				Memcpy(mPosAlignEncoder, mSaveState.mPosAlignEncoder, (1 << kNumAlignBits) * 2);
 				mReps = mSaveState.mReps;
-				Memcpy(mLitProbs, mSaveState.mLitProbs, (0x300 << mLcLp) * 2);
+				Lzma.Memcpy((byte*)mLitProbs, (byte*)mSaveState.mLitProbs, (0x300u << mLcLp) * 2);
 			}
 
 			private uint GetOptimum(uint position, out uint backRes) {
 				OptimumReps reps = new OptimumReps();
-				uint* matches;
+				uint[] matches;
 				uint numAvail;
 				uint lenEnd;
 
@@ -2043,8 +2041,8 @@ namespace ManagedLzma {
 						ushort* probs = LIT_PROBS(position, (data - 1)[0]);
 						mOpt[1].mPrice = GET_PRICE_0(mIsMatch[mState][posState]) +
 							(!IsCharState(mState) ?
-							  LitEnc_GetPriceMatched(probs, curByte, matchByte, mProbPrices) :
-							  LitEnc_GetPrice(probs, curByte, mProbPrices));
+							  LitEnc_GetPriceMatched(ref probs[0], curByte, matchByte, mProbPrices) :
+							  LitEnc_GetPrice(ref probs[0], curByte, mProbPrices));
 					}
 
 					mOpt[1].MakeAsChar();
@@ -2215,9 +2213,9 @@ namespace ManagedLzma {
 					{
 						ushort* probs = LIT_PROBS(position, data[-1]);
 						if (!IsCharState(state))
-							curAnd1Price += LitEnc_GetPriceMatched(probs, curByte, matchByte, mProbPrices);
+							curAnd1Price += LitEnc_GetPriceMatched(ref probs[0], curByte, matchByte, mProbPrices);
 						else
-							curAnd1Price += LitEnc_GetPrice(probs, curByte, mProbPrices);
+							curAnd1Price += LitEnc_GetPrice(ref probs[0], curByte, mProbPrices);
 					}
 
 					COptimal nextOpt = mOpt[cur + 1];
@@ -2333,7 +2331,7 @@ namespace ManagedLzma {
 									+ mRepLenEnc.mPrices[posState][lenTest - 2]
 									+ GET_PRICE_0(mIsMatch[state2][posStateNext])
 									+ LitEnc_GetPriceMatched(
-										LIT_PROBS(position + lenTest, data[lenTest - 1]),
+										ref LIT_PROBS(position + lenTest, data[lenTest - 1])[0],
 										data[lenTest], data2[lenTest], mProbPrices);
 
 								state2 = kLiteralNextStates[state2];
@@ -2421,7 +2419,7 @@ namespace ManagedLzma {
 									uint curAndLenCharPrice = curAndLenPrice
 										+ GET_PRICE_0(mIsMatch[state2][posStateNext])
 										+ LitEnc_GetPriceMatched(
-											LIT_PROBS(position + lenTest, data[lenTest - 1]),
+											ref LIT_PROBS(position + lenTest, data[lenTest - 1])[0],
 											data[lenTest], data2[lenTest], mProbPrices);
 
 									state2 = kLiteralNextStates[state2];
@@ -2504,7 +2502,7 @@ namespace ManagedLzma {
 					}
 				}
 
-				uint* matches = mMatches;
+				uint[] matches = mMatches;
 				if (mainLen >= mNumFastBytes) {
 					backRes = matches[numPairs - 1] + LZMA_NUM_REPS;
 					MovePos(mainLen - 1);
@@ -2576,9 +2574,9 @@ namespace ManagedLzma {
 				mState = kMatchNextStates[mState];
 				uint len = LZMA_MATCH_LEN_MIN;
 				mLenEnc.LenEnc_Encode2(mRC, len - LZMA_MATCH_LEN_MIN, posState, !mFastMode, mProbPrices);
-				RcTree_Encode(mRC, mPosSlotEncoder[GetLenToPosState(len)], kNumPosSlotBits, (1 << kNumPosSlotBits) - 1);
+				RcTree_Encode(mRC, ref mPosSlotEncoder[GetLenToPosState(len)][0], kNumPosSlotBits, (1 << kNumPosSlotBits) - 1);
 				mRC.RangeEnc_EncodeDirectBits(((1u << 30) - 1) >> kNumAlignBits, 30 - kNumAlignBits);
-				RcTree_ReverseEncode(mRC, mPosAlignEncoder, kNumAlignBits, kAlignMask);
+				RcTree_ReverseEncode(mRC, ref mPosAlignEncoder[0], kNumAlignBits, kAlignMask);
 			}
 
 			private int CheckErrors() {
@@ -2612,7 +2610,7 @@ namespace ManagedLzma {
 
 			private void FillAlignPrices() {
 				for (uint i = 0; i < kAlignTableSize; i++)
-					mAlignPrices[i] = RcTree_ReverseGetPrice(mPosAlignEncoder, kNumAlignBits, i, mProbPrices);
+					mAlignPrices[i] = RcTree_ReverseGetPrice(ref mPosAlignEncoder[0], kNumAlignBits, i, mProbPrices);
 
 				mAlignPriceCount = 0;
 			}
@@ -2624,21 +2622,21 @@ namespace ManagedLzma {
 					uint posSlot = GetPosSlot1(i);
 					uint footerBits = (posSlot >> 1) - 1;
 					uint @base = (2u | (posSlot & 1u)) << (int)footerBits;
-					tempPrices[i] = RcTree_ReverseGetPrice(P.From(mPosEncoders, @base - posSlot - 1), (int)footerBits, i - @base, mProbPrices);
+					tempPrices[i] = RcTree_ReverseGetPrice(ref mPosEncoders[@base - posSlot - 1], (int)footerBits, i - @base, mProbPrices);
 				}
 
 				for (uint lenToPosState = 0; lenToPosState < kNumLenToPosStates; lenToPosState++) {
-					ushort* encoder = mPosSlotEncoder[lenToPosState];
-					uint* posSlotPrices = mPosSlotPrices[lenToPosState];
+					ushort[] encoder = mPosSlotEncoder[lenToPosState];
+					uint[] posSlotPrices = mPosSlotPrices[lenToPosState];
 
 					for (uint posSlot = 0; posSlot < mDistTableSize; posSlot++)
-						posSlotPrices[posSlot] = RcTree_GetPrice(encoder, kNumPosSlotBits, posSlot, mProbPrices);
+						posSlotPrices[posSlot] = RcTree_GetPrice(ref encoder[0], kNumPosSlotBits, posSlot, mProbPrices);
 
 					for (uint posSlot = kEndPosModelIndex; posSlot < mDistTableSize; posSlot++)
 						posSlotPrices[posSlot] += ((posSlot >> 1) - 1 - kNumAlignBits) << kNumBitPriceShiftBits;
 
 					{
-						uint* distancesPrices = mDistancesPrices[lenToPosState];
+						uint[] distancesPrices = mDistancesPrices[lenToPosState];
 						uint i = 0;
 						for (; i < kStartPosModelIndex; i++)
 							distancesPrices[i] = posSlotPrices[i];
@@ -2661,9 +2659,9 @@ namespace ManagedLzma {
 				mSaveState.mLitProbs = null;
 			}
 
-			internal void LzmaEnc_FreeLits(SzAlloc alloc) {
-				alloc.FreeUInt16(alloc, mLitProbs);
-				alloc.FreeUInt16(alloc, mSaveState.mLitProbs);
+			internal void LzmaEnc_FreeLits() {
+				SzAlloc.Free(mLitProbs);
+				SzAlloc.Free(mSaveState.mLitProbs);
 				mLitProbs = null;
 				mSaveState.mLitProbs = null;
 			}
@@ -2761,7 +2759,7 @@ namespace ManagedLzma {
 								mLenEnc.LenEnc_Encode2(mRC, len - LZMA_MATCH_LEN_MIN, posState, !mFastMode, mProbPrices);
 								pos -= LZMA_NUM_REPS;
 								uint posSlot = GetPosSlot(pos);
-								RcTree_Encode(mRC, mPosSlotEncoder[GetLenToPosState(len)], kNumPosSlotBits, posSlot);
+								RcTree_Encode(mRC, ref mPosSlotEncoder[GetLenToPosState(len)][0], kNumPosSlotBits, posSlot);
 
 								if (posSlot >= kStartPosModelIndex) {
 									int footerBits = (int)((posSlot >> 1) - 1);
@@ -2769,10 +2767,10 @@ namespace ManagedLzma {
 									uint posReduced = pos - @base;
 
 									if (posSlot < kEndPosModelIndex)
-										RcTree_ReverseEncode(mRC, P.From(mPosEncoders, @base - posSlot - 1), footerBits, posReduced);
+										RcTree_ReverseEncode(mRC, ref mPosEncoders[@base - posSlot - 1], footerBits, posReduced);
 									else {
 										mRC.RangeEnc_EncodeDirectBits(posReduced >> kNumAlignBits, footerBits - kNumAlignBits);
-										RcTree_ReverseEncode(mRC, mPosAlignEncoder, kNumAlignBits, posReduced & kAlignMask);
+										RcTree_ReverseEncode(mRC, ref mPosAlignEncoder[0], kNumAlignBits, posReduced & kAlignMask);
 										mAlignPriceCount++;
 									}
 								}
@@ -2818,18 +2816,18 @@ namespace ManagedLzma {
 
 			private const uint kBigHashDicLimit = 1u << 24;
 
-			private int LzmaEnc_Alloc(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
-				if (!mRC.RangeEnc_Alloc(alloc))
+			private int LzmaEnc_Alloc(uint keepWindowSize) {
+				if (!mRC.RangeEnc_Alloc())
 					return SZ_ERROR_MEM;
 				_ = mMatchFinderBase.mBtMode;
 
 				int lclp = mLC + mLP;
 				if (mLitProbs == null || mSaveState.mLitProbs == null || mLcLp != lclp) {
-					LzmaEnc_FreeLits(alloc);
-					mLitProbs = alloc.AllocUInt16(alloc, 0x300 << lclp);
-					mSaveState.mLitProbs = alloc.AllocUInt16(alloc, 0x300 << lclp);
+					LzmaEnc_FreeLits();
+					mLitProbs = SzAlloc.AllocUInt16(0x300u << lclp);
+					mSaveState.mLitProbs = SzAlloc.AllocUInt16(0x300u << lclp);
 					if (mLitProbs == null || mSaveState.mLitProbs == null) {
-						LzmaEnc_FreeLits(alloc);
+						LzmaEnc_FreeLits();
 						return SZ_ERROR_MEM;
 					}
 					mLcLp = lclp;
@@ -2841,7 +2839,7 @@ namespace ManagedLzma {
 				if (beforeSize + mDictSize < keepWindowSize)
 					beforeSize = keepWindowSize - mDictSize;
 
-				if (!mMatchFinderBase.MatchFinder_Create(mDictSize, beforeSize, mNumFastBytes, LZMA_MATCH_LEN_MAX, allocBig))
+				if (!mMatchFinderBase.MatchFinder_Create(mDictSize, beforeSize, mNumFastBytes, LZMA_MATCH_LEN_MAX))
 					return SZ_ERROR_MEM;
 
 				mMatchFinderObj = mMatchFinderBase;
@@ -2873,7 +2871,7 @@ namespace ManagedLzma {
 					mLitProbs[i] = kProbInitValue;
 
 				for (uint i = 0; i < kNumLenToPosStates; i++) {
-					ushort* probs = mPosSlotEncoder[i];
+					ushort[] probs = mPosSlotEncoder[i];
 					for (uint j = 0; j < (1 << kNumPosSlotBits); j++)
 						probs[j] = kProbInitValue;
 				}
@@ -2908,7 +2906,7 @@ namespace ManagedLzma {
 				mRepLenEnc.LenPriceEnc_UpdateTables(1u << mPB, mProbPrices);
 			}
 
-			internal int LzmaEnc_AllocAndInit(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_AllocAndInit(uint keepWindowSize) {
 				{
 					uint i;
 					for (i = 0; i < kDicLogSizeMaxCompress; i++)
@@ -2922,7 +2920,7 @@ namespace ManagedLzma {
 				mResult = SZ_OK;
 
 				int res;
-				if ((res = LzmaEnc_Alloc(keepWindowSize, alloc, allocBig)) != SZ_OK)
+				if ((res = LzmaEnc_Alloc(keepWindowSize)) != SZ_OK)
 					return res;
 
 				LzmaEnc_Init();
@@ -2937,23 +2935,23 @@ namespace ManagedLzma {
 				mMatchFinderBase.mDirectInputRem = srcLen;
 			}
 
-			internal int LzmaEnc_Prepare(ISeqOutStream outStream, ISeqInStream inStream, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_Prepare(ISeqOutStream outStream, ISeqInStream inStream) {
 				mMatchFinderBase.mStream = inStream;
 				mNeedInit = true;
 				mRC.mOutStream = outStream;
-				return LzmaEnc_AllocAndInit(0, alloc, allocBig);
+				return LzmaEnc_AllocAndInit(0);
 			}
 
-			internal int LzmaEnc_PrepareForLzma2(ISeqInStream inStream, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_PrepareForLzma2(ISeqInStream inStream, uint keepWindowSize) {
 				mMatchFinderBase.mStream = inStream;
 				mNeedInit = true;
-				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
+				return LzmaEnc_AllocAndInit(keepWindowSize);
 			}
 
-			internal int LzmaEnc_MemPrepare(byte* src, long srcLen, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_MemPrepare(byte* src, long srcLen, uint keepWindowSize) {
 				LzmaEnc_SetInputBuf(src, srcLen);
 				mNeedInit = true;
-				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
+				return LzmaEnc_AllocAndInit(keepWindowSize);
 			}
 
 			internal void LzmaEnc_Finish() {
@@ -3027,7 +3025,9 @@ namespace ManagedLzma {
 
 			private uint ReadMatchDistances(out uint numDistancePairsRes) {
 				mNumAvail = mMatchFinder.GetNumAvailableBytes(mMatchFinderObj);
-				uint numPairs = mMatchFinder.GetMatches(mMatchFinderObj, mMatches);
+				uint numPairs;
+				fixed (uint* p = mMatches)
+					numPairs = mMatchFinder.GetMatches(mMatchFinderObj, p);
 
 				uint lenRes = 0;
 				if (numPairs > 0) {
@@ -3131,6 +3131,24 @@ namespace ManagedLzma {
 			#endregion
 		}
 
+		#region Private Methods
+
+		private static T[] NewArray<T>(int sz1, Func<T> creator) {
+			T[] buffer = new T[sz1];
+			for (int i = 0; i < sz1; i++)
+				buffer[i] = creator();
+			return buffer;
+		}
+
+		private static T[][] NewArray<T>(int sz1, int sz2) {
+			T[][] buffer = new T[sz1][];
+			for (int i = 0; i < buffer.Length; i++)
+				buffer[i] = new T[sz2];
+			return buffer;
+		}
+
+		#endregion
+
 		/* ---------- One Call Interface ---------- */
 
 		/* LzmaEncode
@@ -3142,7 +3160,7 @@ namespace ManagedLzma {
           SZ_ERROR_THREAD     - errors in multithreading functions (only for Mt version)
         */
 
-		public static int LzmaEncode(byte* dest, ref long destLen, byte* src, long srcLen, CLzmaEncProps props, byte* propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+		public static int LzmaEncode(byte* dest, ref long destLen, byte* src, long srcLen, CLzmaEncProps props, byte* propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress) {
 			CLzmaEnc encoder = CLzmaEnc.LzmaEnc_Create();
 			if (encoder == null)
 				return SZ_ERROR_MEM;
@@ -3152,10 +3170,10 @@ namespace ManagedLzma {
 			if (res == SZ_OK) {
 				res = encoder.LzmaEnc_WriteProperties(propsEncoded, ref propsSize);
 				if (res == SZ_OK)
-					res = encoder.LzmaEnc_MemEncode(dest, ref destLen, src, srcLen, writeEndMark, progress, alloc, allocBig);
+					res = encoder.LzmaEnc_MemEncode(dest, ref destLen, src, srcLen, writeEndMark, progress);
 			}
 
-			encoder.LzmaEnc_Destroy(alloc, allocBig);
+			encoder.LzmaEnc_Destroy();
 			return res;
 		}
 
@@ -3261,7 +3279,7 @@ namespace ManagedLzma {
 			props.mFB = fb;
 			props.mNumThreads = numThreads;
 
-			return LzmaEncode(dest, ref destLen, src, srcLen, props, outProps, ref outPropsSize, false, null, SzAlloc.SmallAlloc, SzAlloc.BigAlloc);
+			return LzmaEncode(dest, ref destLen, src, srcLen, props, outProps, ref outPropsSize, false, null);
 		}
 	}
 }

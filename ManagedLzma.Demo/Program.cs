@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 
 namespace ManagedLzma.Demo {
-	internal static class Program {
+	internal static unsafe class Program {
 		static void Main() {
 			byte[] source;
 			byte[] props;
@@ -30,10 +30,13 @@ namespace ManagedLzma.Demo {
 			long srcLen = data.Length;
 			props = new byte[Lzma.LZMA_PROPS_SIZE];
 			long propsLen = props.Length;
-			Lzma.LzmaCompress(
-				buffer, ref destLen,
-				data, srcLen,
-				props, ref propsLen,
+			fixed (byte* pBuffer = buffer)
+			fixed (byte* pData = data)
+			fixed (byte* pProps = props)
+				Lzma.LzmaCompress(
+				pBuffer, ref destLen,
+				pData, srcLen,
+				pProps, ref propsLen,
 				9, 128 * 1024 * 1024, -1, -1, -1, 273, 1);
 			byte[] compressedData = new byte[destLen];
 			Buffer.BlockCopy(buffer, 0, compressedData, 0, compressedData.Length);
@@ -44,9 +47,12 @@ namespace ManagedLzma.Demo {
 			byte[] decompressedData = new byte[rawSize];
 			long destLen = decompressedData.Length;
 			long srcLen = compressedData.Length;
-			Lzma.LzmaUncompress(
-				decompressedData, ref destLen,
-				compressedData, ref srcLen, props, props.Length);
+			fixed (byte* pDecompressedData = decompressedData)
+			fixed (byte* pCompressedData = compressedData)
+			fixed (byte* pProps = props)
+				Lzma.LzmaUncompress(
+				pDecompressedData, ref destLen,
+				pCompressedData, ref srcLen, pProps, props.Length);
 			return decompressedData;
 		}
 

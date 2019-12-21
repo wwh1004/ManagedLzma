@@ -1,5 +1,7 @@
 #pragma warning disable CA1034
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace ManagedLzma {
 	public static unsafe partial class Lzma {
@@ -59,6 +61,73 @@ namespace ManagedLzma {
            Value (ulong)(long)-1 for size means unknown value. */
 		public interface ICompressProgress {
 			int Progress(ulong inSize, ulong outSize);
+		}
+
+		public static class SzAlloc {
+			private static readonly Dictionary<uint, List<IntPtr>> _cache = new Dictionary<uint, List<IntPtr>>();
+			private static readonly Dictionary<IntPtr, BufferInfo> _handles = new Dictionary<IntPtr, BufferInfo>();
+
+			public static byte* AllocBytes(uint size) {
+				lock (_cache) {
+					List<IntPtr> cache;
+
+					if (_cache.TryGetValue(size, out cache) && cache.Count > 0) {
+						IntPtr p;
+
+						p = cache[cache.Count - 1];
+						cache.RemoveAt(cache.Count - 1);
+						return (byte*)p;
+					}
+				}
+				lock (_handles) {
+					byte[] buffer;
+					GCHandle gcHandle;
+					IntPtr p;
+
+					buffer = new byte[size];
+					gcHandle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+					p = gcHandle.AddrOfPinnedObject();
+					_handles.Add(p, new BufferInfo { Size = size, GCHandle = gcHandle });
+					return (byte*)p;
+				}
+			}
+
+			public static ushort* AllocUInt16(uint size) {
+				return (ushort*)AllocBytes(size * 2);
+			}
+
+			public static uint* AllocUInt32(uint size) {
+				return (uint*)AllocBytes(size * 4);
+			}
+
+			public static void Free(void* p) {
+				if (p != null) {
+					BufferInfo bufferInfo;
+
+					bufferInfo = _handles[(IntPtr)p];
+					lock (_cache) {
+						List<IntPtr> cache;
+
+						if (!_cache.TryGetValue(bufferInfo.Size, out cache)) {
+							cache = new List<IntPtr>();
+							_cache.Add(bufferInfo.Size, cache);
+						}
+						cache.Add((IntPtr)p);
+					}
+				}
+			}
+
+			public static void ClearCache() {
+				_cache.Clear();
+				foreach (KeyValuePair<IntPtr, BufferInfo> handle in _handles)
+					handle.Value.GCHandle.Free();
+				_handles.Clear();
+			}
+
+			private struct BufferInfo {
+				public uint Size;
+				public GCHandle GCHandle;
+			}
 		}
 
 		#endregion
@@ -134,20 +203,6 @@ namespace ManagedLzma {
 				if ((len & 1) != 0)
 					*dest++ = *src++;
 			}
-		}
-
-		private static T[] NewArray<T>(int sz1, Func<T> creator) {
-			T[] buffer = new T[sz1];
-			for (int i = 0; i < sz1; i++)
-				buffer[i] = creator();
-			return buffer;
-		}
-
-		private static T[][] NewArray<T>(int sz1, int sz2) {
-			T[][] buffer = new T[sz1][];
-			for (int i = 0; i < buffer.Length; i++)
-				buffer[i] = new T[sz2];
-			return buffer;
 		}
 
 		#endregion
