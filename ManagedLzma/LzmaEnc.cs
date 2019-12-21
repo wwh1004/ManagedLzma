@@ -1,3 +1,4 @@
+#pragma warning disable CA1034
 using System;
 
 namespace ManagedLzma {
@@ -2342,3 +2343,4 @@ namespace ManagedLzma {
 		}
 	}
 }
+#pragma warning restore CA1034
