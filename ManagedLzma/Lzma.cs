@@ -1,6 +1,5 @@
 #pragma warning disable CA1034
 using System;
-using System.Collections.Generic;
 
 namespace ManagedLzma {
 	public static unsafe partial class Lzma {
