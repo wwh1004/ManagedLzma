@@ -1128,7 +1128,7 @@ namespace ManagedLzma {
 				}
 
 				if (offset != 0) {
-					while (maxLen != lenLimit && cur[maxLen - delta2] == cur[maxLen])
+					while (maxLen != lenLimit && cur[(int)(maxLen - delta2)] == cur[maxLen])
 						maxLen++;
 
 					distances[offset - 2] = maxLen;
@@ -2622,7 +2622,8 @@ namespace ManagedLzma {
 					uint posSlot = GetPosSlot1(i);
 					uint footerBits = (posSlot >> 1) - 1;
 					uint @base = (2u | (posSlot & 1u)) << (int)footerBits;
-					tempPrices[i] = RcTree_ReverseGetPrice(ref mPosEncoders[@base - posSlot - 1], (int)footerBits, i - @base, mProbPrices);
+					fixed (ushort* p = mPosEncoders)
+						tempPrices[i] = RcTree_ReverseGetPrice(ref p[(int)(@base - posSlot - 1)], (int)footerBits, i - @base, mProbPrices);
 				}
 
 				for (uint lenToPosState = 0; lenToPosState < kNumLenToPosStates; lenToPosState++) {
@@ -2767,7 +2768,8 @@ namespace ManagedLzma {
 									uint posReduced = pos - @base;
 
 									if (posSlot < kEndPosModelIndex)
-										RcTree_ReverseEncode(mRC, ref mPosEncoders[@base - posSlot - 1], footerBits, posReduced);
+										fixed (ushort* p = mPosEncoders)
+											RcTree_ReverseEncode(mRC, ref p[(int)(@base - posSlot - 1)], footerBits, posReduced);
 									else {
 										mRC.RangeEnc_EncodeDirectBits(posReduced >> kNumAlignBits, footerBits - kNumAlignBits);
 										RcTree_ReverseEncode(mRC, ref mPosAlignEncoder[0], kNumAlignBits, posReduced & kAlignMask);
