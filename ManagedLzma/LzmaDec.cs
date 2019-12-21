@@ -1,6 +1,6 @@
 #pragma warning disable CA1034
 namespace ManagedLzma {
-	partial class Lzma {
+	unsafe partial class Lzma {
 		/* ---------- LZMA Properties ---------- */
 
 		public sealed class CLzmaProps {

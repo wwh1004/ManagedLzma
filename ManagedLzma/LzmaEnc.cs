@@ -2,7 +2,7 @@
 using System;
 
 namespace ManagedLzma {
-	partial class Lzma {
+	unsafe partial class Lzma {
 		public sealed class CLzmaEncProps {
 			#region Variables
 

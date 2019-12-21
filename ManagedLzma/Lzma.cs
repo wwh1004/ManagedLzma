@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 
 namespace ManagedLzma {
-	public static partial class Lzma {
+	public static unsafe partial class Lzma {
 		#region Constants
 
 		public const int LZMA_PROPS_SIZE = 5;
