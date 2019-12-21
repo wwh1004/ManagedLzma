@@ -31,7 +31,7 @@ namespace ManagedLzma {
               SZ_ERROR_UNSUPPORTED - Unsupported properties
             */
 
-			public SRes LzmaProps_Decode(P<byte> data, uint size) {
+			public int LzmaProps_Decode(P<byte> data, uint size) {
 				if (size < LZMA_PROPS_SIZE)
 					return SZ_ERROR_UNSUPPORTED;
 
@@ -190,8 +190,8 @@ namespace ManagedLzma {
               SZ_ERROR_UNSUPPORTED - Unsupported properties
             */
 
-			public SRes LzmaDec_AllocateProbs(P<byte> props, uint propsSize, SzAlloc alloc) {
-				SRes res;
+			public int LzmaDec_AllocateProbs(P<byte> props, uint propsSize, SzAlloc alloc) {
+				int res;
 				CLzmaProps propNew = new CLzmaProps();
 				if ((res = propNew.LzmaProps_Decode(props, propsSize)) != SZ_OK) return res;
 				if ((res = LzmaDec_AllocateProbs2(propNew, alloc)) != SZ_OK) return res;
@@ -204,10 +204,10 @@ namespace ManagedLzma {
 				mProbs = null;
 			}
 
-			public SRes LzmaDec_Allocate(P<byte> props, uint propsSize, SzAlloc alloc) {
+			public int LzmaDec_Allocate(P<byte> props, uint propsSize, SzAlloc alloc) {
 				CLzmaProps propNew = new CLzmaProps();
 
-				SRes res;
+				int res;
 				if ((res = propNew.LzmaProps_Decode(props, propsSize)) != SZ_OK)
 					return res;
 
@@ -275,7 +275,7 @@ namespace ManagedLzma {
               SZ_ERROR_DATA - Data error
             */
 
-			public SRes LzmaDec_DecodeToDic(long dicLimit, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
+			public int LzmaDec_DecodeToDic(long dicLimit, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
 				long inSize = srcLen;
 				srcLen = 0;
 
@@ -421,7 +421,7 @@ namespace ManagedLzma {
               LZMA_FINISH_END - Stream must be finished after (*destLen).
             */
 
-			public SRes LzmaDec_DecodeToBuf(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
+			public int LzmaDec_DecodeToBuf(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
 				long outSize = destLen;
 				long inSize = srcLen;
 				srcLen = destLen = 0;
@@ -444,7 +444,7 @@ namespace ManagedLzma {
 						curFinishMode = finishMode;
 					}
 
-					SRes res = LzmaDec_DecodeToDic(outSizeCur, src, ref inSizeCur, curFinishMode, out status);
+					int res = LzmaDec_DecodeToDic(outSizeCur, src, ref inSizeCur, curFinishMode, out status);
 					src += inSizeCur;
 					inSize -= inSizeCur;
 					srcLen += inSizeCur;
@@ -496,7 +496,7 @@ namespace ManagedLzma {
                 = kMatchSpecLenStart + 2 : State Init Marker
             */
 
-			private SRes LzmaDec_DecodeReal(long limit, P<byte> bufLimit) {
+			private int LzmaDec_DecodeReal(long limit, P<byte> bufLimit) {
 				P<ushort> probs = mProbs;
 
 				uint state = mState;
@@ -794,7 +794,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			private SRes LzmaDec_DecodeReal2(long limit, P<byte> bufLimit) {
+			private int LzmaDec_DecodeReal2(long limit, P<byte> bufLimit) {
 				do {
 					long limit2 = limit;
 					if (mCheckDicSize == 0) {
@@ -803,7 +803,7 @@ namespace ManagedLzma {
 							limit2 = mDicPos + rem;
 					}
 
-					SRes res;
+					int res;
 					if ((res = LzmaDec_DecodeReal(limit2, bufLimit)) != SZ_OK)
 						return res;
 
@@ -1033,7 +1033,7 @@ namespace ManagedLzma {
 				mDic = null;
 			}
 
-			private SRes LzmaDec_AllocateProbs2(CLzmaProps propNew, SzAlloc alloc) {
+			private int LzmaDec_AllocateProbs2(CLzmaProps propNew, SzAlloc alloc) {
 				uint numProbs = LzmaProps_GetNumProbs(propNew);
 				if (mProbs == null || numProbs != mNumProbs) {
 					LzmaDec_FreeProbs(alloc);
@@ -1239,7 +1239,7 @@ namespace ManagedLzma {
 		  SZ_ERROR_INPUT_EOF - It needs more bytes in input buffer (src).
 		*/
 
-		public static SRes LzmaDecode(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, P<byte> propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status, SzAlloc alloc) {
+		public static int LzmaDecode(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, P<byte> propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status, SzAlloc alloc) {
 			long outSize = destLen;
 			long inSize = srcLen;
 			destLen = 0;
@@ -1252,7 +1252,7 @@ namespace ManagedLzma {
 			CLzmaDec decoder = new CLzmaDec();
 			decoder.LzmaDec_Construct();
 
-			SRes res;
+			int res;
 			if ((res = decoder.LzmaDec_AllocateProbs(propData, propSize, alloc)) != SZ_OK)
 				return res;
 
@@ -1291,7 +1291,7 @@ namespace ManagedLzma {
           SZ_ERROR_INPUT_EOF   - it needs more bytes in input buffer (src)
         */
 
-		public static SRes LzmaUncompress(
+		public static int LzmaUncompress(
 			P<byte> dest, ref long destLen,
 			P<byte> src, ref long srcLen,
 			P<byte> props, long propsSize) {

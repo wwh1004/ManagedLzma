@@ -4,7 +4,29 @@ using System.Collections.Generic;
 
 namespace ManagedLzma {
 	public static partial class Lzma {
+		#region Constants
+
 		public const int LZMA_PROPS_SIZE = 5;
+
+		public const int SZ_OK = 0;
+
+		public const int SZ_ERROR_DATA = 1;
+		public const int SZ_ERROR_MEM = 2;
+		public const int SZ_ERROR_CRC = 3;
+		public const int SZ_ERROR_UNSUPPORTED = 4;
+		public const int SZ_ERROR_PARAM = 5;
+		public const int SZ_ERROR_INPUT_EOF = 6;
+		public const int SZ_ERROR_OUTPUT_EOF = 7;
+		public const int SZ_ERROR_READ = 8;
+		public const int SZ_ERROR_WRITE = 9;
+		public const int SZ_ERROR_PROGRESS = 10;
+		public const int SZ_ERROR_FAIL = 11;
+		public const int SZ_ERROR_THREAD = 12;
+
+		public const int SZ_ERROR_ARCHIVE = 16;
+		public const int SZ_ERROR_NO_ARCHIVE = 17;
+
+		#endregion
 
 		#region Pointer
 
@@ -165,36 +187,6 @@ namespace ManagedLzma {
 
 		#region Types
 
-		public struct SRes {
-			private readonly int _code;
-			public SRes(int code) { _code = code; }
-			public override int GetHashCode() { return _code; }
-			public override bool Equals(object obj) { return obj is SRes && ((SRes)obj)._code == _code; }
-			public bool Equals(SRes obj) { return obj._code == _code; }
-			public static bool operator ==(SRes left, SRes right) { return left._code == right._code; }
-			public static bool operator !=(SRes left, SRes right) { return left._code != right._code; }
-			public static bool operator ==(SRes left, int right) { return left._code == right; }
-			public static bool operator !=(SRes left, int right) { return left._code != right; }
-		}
-
-		public static SRes SZ_OK { get { return new SRes(0); } }
-
-		public static SRes SZ_ERROR_DATA { get { return new SRes(1); } }
-		public static SRes SZ_ERROR_MEM { get { return new SRes(2); } }
-		public static SRes SZ_ERROR_CRC { get { return new SRes(3); } }
-		public static SRes SZ_ERROR_UNSUPPORTED { get { return new SRes(4); } }
-		public static SRes SZ_ERROR_PARAM { get { return new SRes(5); } }
-		public static SRes SZ_ERROR_INPUT_EOF { get { return new SRes(6); } }
-		public static SRes SZ_ERROR_OUTPUT_EOF { get { return new SRes(7); } }
-		public static SRes SZ_ERROR_READ { get { return new SRes(8); } }
-		public static SRes SZ_ERROR_WRITE { get { return new SRes(9); } }
-		public static SRes SZ_ERROR_PROGRESS { get { return new SRes(10); } }
-		public static SRes SZ_ERROR_FAIL { get { return new SRes(11); } }
-		public static SRes SZ_ERROR_THREAD { get { return new SRes(12); } }
-
-		public static SRes SZ_ERROR_ARCHIVE { get { return new SRes(16); } }
-		public static SRes SZ_ERROR_NO_ARCHIVE { get { return new SRes(17); } }
-
 		//#define RINOK(x) { int __result__ = (x); if (__result__ != 0) return __result__; }
 
 		/* The following interfaces use first parameter as pointer to structure */
@@ -202,7 +194,7 @@ namespace ManagedLzma {
 		/* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
            (output(*size) < input(*size)) is allowed */
 		public interface ISeqInStream {
-			SRes Read(P<byte> buf, ref long size);
+			int Read(P<byte> buf, ref long size);
 		}
 
 		/* Returns: result - the number of actually written bytes.
@@ -214,7 +206,7 @@ namespace ManagedLzma {
 		/* Returns: result. (result != SZ_OK) means break.
            Value (ulong)(long)-1 for size means unknown value. */
 		public interface ICompressProgress {
-			SRes Progress(ulong inSize, ulong outSize);
+			int Progress(ulong inSize, ulong outSize);
 		}
 
 		//public delegate object ISzAlloc_Alloc(object p, long size);

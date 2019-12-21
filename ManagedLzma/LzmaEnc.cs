@@ -392,7 +392,7 @@ namespace ManagedLzma {
 			public P<byte> mBufBase;
 			public ISeqOutStream mOutStream;
 			public ulong mProcessed;
-			public SRes mRes;
+			public int mRes;
 
 			#endregion
 
@@ -583,7 +583,7 @@ namespace ManagedLzma {
 			public uint mFixedHashSize;
 			public uint mHashSizeSum;
 			public uint mNumSons;
-			public SRes mResult;
+			public int mResult;
 
 			#endregion
 
@@ -1781,7 +1781,7 @@ namespace ManagedLzma {
 			internal uint mMatchPriceCount;
 			internal bool mFinished;
 
-			internal SRes mResult;
+			internal int mResult;
 			internal uint mDictSize;
 
 			internal bool mNeedInit;
@@ -1802,7 +1802,7 @@ namespace ManagedLzma {
 				mRC.RangeEnc_Free(alloc);
 			}
 
-			public SRes LzmaEnc_SetProps(CLzmaEncProps props2) {
+			public int LzmaEnc_SetProps(CLzmaEncProps props2) {
 				CLzmaEncProps props = new CLzmaEncProps(props2);
 				props.LzmaEncProps_Normalize();
 
@@ -1844,7 +1844,7 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			public SRes LzmaEnc_WriteProperties(P<byte> props, ref long size) {
+			public int LzmaEnc_WriteProperties(P<byte> props, ref long size) {
 				uint dictSize = mDictSize;
 				if (size < LZMA_PROPS_SIZE)
 					return SZ_ERROR_PARAM;
@@ -1868,15 +1868,15 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			public SRes LzmaEnc_Encode(ISeqOutStream outStream, ISeqInStream inStream, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
-				SRes res;
+			public int LzmaEnc_Encode(ISeqOutStream outStream, ISeqInStream inStream, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+				int res;
 				if ((res = LzmaEnc_Prepare(outStream, inStream, alloc, allocBig)) != SZ_OK)
 					return res;
 
 				return LzmaEnc_Encode2(progress);
 			}
 
-			public SRes LzmaEnc_MemEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+			public int LzmaEnc_MemEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
 				CSeqOutStreamBuf outStream = new CSeqOutStreamBuf();
 
 				LzmaEnc_SetInputBuf(src, srcLen);
@@ -1889,7 +1889,7 @@ namespace ManagedLzma {
 
 				mRC.mOutStream = outStream;
 
-				SRes res = LzmaEnc_MemPrepare(src, srcLen, 0, alloc, allocBig);
+				int res = LzmaEnc_MemPrepare(src, srcLen, 0, alloc, allocBig);
 				if (res == SZ_OK)
 					res = LzmaEnc_Encode2(progress);
 
@@ -2581,7 +2581,7 @@ namespace ManagedLzma {
 				RcTree_ReverseEncode(mRC, mPosAlignEncoder, kNumAlignBits, kAlignMask);
 			}
 
-			private SRes CheckErrors() {
+			private int CheckErrors() {
 				if (mResult != SZ_OK)
 					return mResult;
 
@@ -2597,7 +2597,7 @@ namespace ManagedLzma {
 				return mResult;
 			}
 
-			private SRes Flush(uint nowPos) {
+			private int Flush(uint nowPos) {
 				/* ReleaseMFStream(); */
 				mFinished = true;
 
@@ -2668,7 +2668,7 @@ namespace ManagedLzma {
 				mSaveState.mLitProbs = null;
 			}
 
-			internal SRes LzmaEnc_CodeOneBlock(bool useLimits, uint maxPackSize, uint maxUnpackSize) {
+			internal int LzmaEnc_CodeOneBlock(bool useLimits, uint maxPackSize, uint maxUnpackSize) {
 				if (mNeedInit) {
 					mMatchFinder.Init(mMatchFinderObj);
 					mNeedInit = false;
@@ -2677,7 +2677,7 @@ namespace ManagedLzma {
 				if (mFinished)
 					return mResult;
 
-				SRes res;
+				int res;
 				if ((res = CheckErrors()) != SZ_OK)
 					return res;
 
@@ -2818,7 +2818,7 @@ namespace ManagedLzma {
 
 			private const uint kBigHashDicLimit = 1u << 24;
 
-			private SRes LzmaEnc_Alloc(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			private int LzmaEnc_Alloc(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
 				if (!mRC.RangeEnc_Alloc(alloc))
 					return SZ_ERROR_MEM;
 				_ = mMatchFinderBase.mBtMode;
@@ -2908,7 +2908,7 @@ namespace ManagedLzma {
 				mRepLenEnc.LenPriceEnc_UpdateTables(1u << mPB, mProbPrices);
 			}
 
-			internal SRes LzmaEnc_AllocAndInit(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_AllocAndInit(uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
 				{
 					uint i;
 					for (i = 0; i < kDicLogSizeMaxCompress; i++)
@@ -2921,7 +2921,7 @@ namespace ManagedLzma {
 				mFinished = false;
 				mResult = SZ_OK;
 
-				SRes res;
+				int res;
 				if ((res = LzmaEnc_Alloc(keepWindowSize, alloc, allocBig)) != SZ_OK)
 					return res;
 
@@ -2937,20 +2937,20 @@ namespace ManagedLzma {
 				mMatchFinderBase.mDirectInputRem = srcLen;
 			}
 
-			internal SRes LzmaEnc_Prepare(ISeqOutStream outStream, ISeqInStream inStream, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_Prepare(ISeqOutStream outStream, ISeqInStream inStream, SzAlloc alloc, SzAlloc allocBig) {
 				mMatchFinderBase.mStream = inStream;
 				mNeedInit = true;
 				mRC.mOutStream = outStream;
 				return LzmaEnc_AllocAndInit(0, alloc, allocBig);
 			}
 
-			internal SRes LzmaEnc_PrepareForLzma2(ISeqInStream inStream, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_PrepareForLzma2(ISeqInStream inStream, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
 				mMatchFinderBase.mStream = inStream;
 				mNeedInit = true;
 				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
 			}
 
-			internal SRes LzmaEnc_MemPrepare(P<byte> src, long srcLen, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_MemPrepare(P<byte> src, long srcLen, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
 				LzmaEnc_SetInputBuf(src, srcLen);
 				mNeedInit = true;
 				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
@@ -2967,7 +2967,7 @@ namespace ManagedLzma {
 				return mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - mAdditionalOffset;
 			}
 
-			internal SRes LzmaEnc_CodeOneMemBlock(bool reInit, P<byte> dest, ref long destLen, uint desiredPackSize, ref uint unpackSize) {
+			internal int LzmaEnc_CodeOneMemBlock(bool reInit, P<byte> dest, ref long destLen, uint desiredPackSize, ref uint unpackSize) {
 				CSeqOutStreamBuf outStream = new CSeqOutStreamBuf {
 					mData = dest,
 					mRem = destLen,
@@ -2986,7 +2986,7 @@ namespace ManagedLzma {
 				mRC.RangeEnc_Init();
 				mRC.mOutStream = outStream;
 
-				SRes res = LzmaEnc_CodeOneBlock(true, desiredPackSize, unpackSize);
+				int res = LzmaEnc_CodeOneBlock(true, desiredPackSize, unpackSize);
 
 				unpackSize = (uint)(mNowPos64 - nowPos64);
 				destLen -= outStream.mRem;
@@ -2996,9 +2996,9 @@ namespace ManagedLzma {
 				return res;
 			}
 
-			private SRes LzmaEnc_Encode2(ICompressProgress progress) {
+			private int LzmaEnc_Encode2(ICompressProgress progress) {
 				_ = SZ_OK;
-				SRes res;
+				int res;
 				for (; ; )
 				{
 					res = LzmaEnc_CodeOneBlock(false, 0, 0);
@@ -3142,12 +3142,12 @@ namespace ManagedLzma {
           SZ_ERROR_THREAD     - errors in multithreading functions (only for Mt version)
         */
 
-		public static SRes LzmaEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, CLzmaEncProps props, P<byte> propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+		public static int LzmaEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, CLzmaEncProps props, P<byte> propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
 			CLzmaEnc encoder = CLzmaEnc.LzmaEnc_Create();
 			if (encoder == null)
 				return SZ_ERROR_MEM;
 
-			SRes res;
+			int res;
 			res = encoder.LzmaEnc_SetProps(props);
 			if (res == SZ_OK) {
 				res = encoder.LzmaEnc_WriteProperties(propsEncoded, ref propsSize);
@@ -3240,7 +3240,7 @@ namespace ManagedLzma {
           SZ_ERROR_THREAD     - errors in multithreading functions (only for Mt version)
         */
 
-		public static SRes LzmaCompress(
+		public static int LzmaCompress(
 			P<byte> dest, ref long destLen,
 			P<byte> src, long srcLen,
 			P<byte> outProps, ref long outPropsSize, /* *outPropsSize must be = 5 */
