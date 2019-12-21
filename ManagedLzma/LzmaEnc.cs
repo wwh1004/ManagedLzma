@@ -1451,7 +1451,6 @@ namespace ManagedLzma {
 		#endregion
 
 		public sealed class CLzmaEnc {
-
 			#region Constants
 
 			private const int kNumTopBits = 24;
@@ -3261,9 +3260,9 @@ namespace ManagedLzma {
         */
 
 		public static int LzmaCompress(
-			byte* dest, ref long destLen,
-			byte* src, long srcLen,
-			byte* outProps, ref long outPropsSize, /* *outPropsSize must be = 5 */
+			ref byte dest, ref long destLen,
+			ref byte src, long srcLen,
+			ref byte outProps, ref long outPropsSize, /* *outPropsSize must be = 5 */
 			int level,      /* 0 <= level <= 9, default = 5 */
 			uint dictSize,  /* default = (1 << 24) */
 			int lc,         /* 0 <= lc <= 8, default = 3  */
@@ -3281,7 +3280,10 @@ namespace ManagedLzma {
 			props.mFB = fb;
 			props.mNumThreads = numThreads;
 
-			return LzmaEncode(dest, ref destLen, src, srcLen, props, outProps, ref outPropsSize, false, null);
+			fixed (byte* pDest = &dest)
+			fixed (byte* pSrc = &src)
+			fixed (byte* pOutProps = &outProps)
+				return LzmaEncode(pDest, ref destLen, pSrc, srcLen, props, pOutProps, ref outPropsSize, false, null);
 		}
 	}
 }

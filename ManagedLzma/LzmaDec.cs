@@ -1,4 +1,6 @@
 #pragma warning disable CA1034
+using System.Runtime.InteropServices;
+
 namespace ManagedLzma {
 	unsafe partial class Lzma {
 		/* ---------- LZMA Properties ---------- */
@@ -152,7 +154,8 @@ namespace ManagedLzma {
 			internal bool mNeedInitState;
 			internal uint mNumProbs;
 			internal uint mTempBufSize;
-			internal byte* mTempBuf = SzAlloc.AllocBytes(LZMA_REQUIRED_INPUT_MAX);
+			private GCHandle mTempBuf_h;
+			internal byte* mTempBuf;
 
 			#endregion
 
@@ -161,6 +164,8 @@ namespace ManagedLzma {
 			public void LzmaDec_Construct() {
 				mDic = null;
 				mProbs = null;
+				mTempBuf_h = GCHandle.Alloc(new byte[LZMA_REQUIRED_INPUT_MAX], GCHandleType.Pinned);
+				mTempBuf = (byte*)mTempBuf_h.AddrOfPinnedObject();
 			}
 
 			public void LzmaDec_Init() {
@@ -1050,8 +1055,8 @@ namespace ManagedLzma {
 			}
 
 			~CLzmaDec() {
-				SzAlloc.Free(mTempBuf);
 				mTempBuf = null;
+				mTempBuf_h.Free();
 			}
 
 			#endregion
@@ -1298,10 +1303,13 @@ namespace ManagedLzma {
         */
 
 		public static int LzmaUncompress(
-			byte* dest, ref long destLen,
-			byte* src, ref long srcLen,
-			byte* props, long propsSize) {
-			return LzmaDecode(dest, ref destLen, src, ref srcLen, props, (uint)propsSize, ELzmaFinishMode.LZMA_FINISH_ANY, out _);
+			ref byte dest, ref long destLen,
+			ref byte src, ref long srcLen,
+			ref byte props, long propsSize) {
+			fixed (byte* pDest = &dest)
+			fixed (byte* pSrc = &src)
+			fixed (byte* pProps = &props)
+				return LzmaDecode(pDest, ref destLen, pSrc, ref srcLen, pProps, (uint)propsSize, ELzmaFinishMode.LZMA_FINISH_ANY, out _);
 		}
 	}
 }
