@@ -31,7 +31,7 @@ namespace ManagedLzma {
               SZ_ERROR_UNSUPPORTED - Unsupported properties
             */
 
-			public int LzmaProps_Decode(P<byte> data, uint size) {
+			public int LzmaProps_Decode(byte* data, uint size) {
 				if (size < LZMA_PROPS_SIZE)
 					return SZ_ERROR_UNSUPPORTED;
 
@@ -138,8 +138,8 @@ namespace ManagedLzma {
 
 			internal CLzmaProps mProp = new CLzmaProps();
 			internal ushort[] mProbs;
-			internal P<byte> mDic;
-			internal P<byte> mBuf;
+			internal byte* mDic;
+			internal byte* mBuf;
 			internal uint mRange, mCode;
 			internal long mDicPos;
 			internal long mDicBufSize;
@@ -190,7 +190,7 @@ namespace ManagedLzma {
               SZ_ERROR_UNSUPPORTED - Unsupported properties
             */
 
-			public int LzmaDec_AllocateProbs(P<byte> props, uint propsSize, SzAlloc alloc) {
+			public int LzmaDec_AllocateProbs(byte* props, uint propsSize, SzAlloc alloc) {
 				int res;
 				CLzmaProps propNew = new CLzmaProps();
 				if ((res = propNew.LzmaProps_Decode(props, propsSize)) != SZ_OK) return res;
@@ -204,7 +204,7 @@ namespace ManagedLzma {
 				mProbs = null;
 			}
 
-			public int LzmaDec_Allocate(P<byte> props, uint propsSize, SzAlloc alloc) {
+			public int LzmaDec_Allocate(byte* props, uint propsSize, SzAlloc alloc) {
 				CLzmaProps propNew = new CLzmaProps();
 
 				int res;
@@ -275,7 +275,7 @@ namespace ManagedLzma {
               SZ_ERROR_DATA - Data error
             */
 
-			public int LzmaDec_DecodeToDic(long dicLimit, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
+			public int LzmaDec_DecodeToDic(long dicLimit, byte* src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
 				long inSize = srcLen;
 				srcLen = 0;
 
@@ -330,7 +330,7 @@ namespace ManagedLzma {
 						LzmaDec_InitStateReal();
 
 					if (mTempBufSize == 0) {
-						P<byte> bufLimit;
+						byte* bufLimit;
 						if (inSize < LZMA_REQUIRED_INPUT_MAX || checkEndMarkNow) {
 							ELzmaDummy dummyRes = LzmaDec_TryDummy(src, inSize);
 
@@ -421,7 +421,7 @@ namespace ManagedLzma {
               LZMA_FINISH_END - Stream must be finished after (*destLen).
             */
 
-			public int LzmaDec_DecodeToBuf(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
+			public int LzmaDec_DecodeToBuf(byte* dest, ref long destLen, byte* src, ref long srcLen, ELzmaFinishMode finishMode, out ELzmaStatus status) {
 				long outSize = destLen;
 				long inSize = srcLen;
 				srcLen = destLen = 0;
@@ -496,8 +496,8 @@ namespace ManagedLzma {
                 = kMatchSpecLenStart + 2 : State Init Marker
             */
 
-			private int LzmaDec_DecodeReal(long limit, P<byte> bufLimit) {
-				P<ushort> probs = mProbs;
+			private int LzmaDec_DecodeReal(long limit, byte* bufLimit) {
+				ushort* probs = mProbs;
 
 				uint state = mState;
 				uint rep0 = mReps[0];
@@ -508,7 +508,7 @@ namespace ManagedLzma {
 				uint lpMask = (1u << mProp.mLP) - 1;
 				int lc = mProp.mLC;
 
-				P<byte> dic = mDic;
+				byte* dic = mDic;
 				long dicBufSize = mDicBufSize;
 				long dicPos = mDicPos;
 
@@ -516,7 +516,7 @@ namespace ManagedLzma {
 				uint checkDicSize = mCheckDicSize;
 				uint len = 0;
 
-				P<byte> buf = mBuf;
+				byte* buf = mBuf;
 				uint range = mRange;
 				uint code = mCode;
 
@@ -525,7 +525,7 @@ namespace ManagedLzma {
 					uint ttt;
 					uint posState = processedPos & pbMask;
 
-					P<ushort> prob = probs + kIsMatch + (state << kNumPosBitsMax) + posState;
+					ushort* prob = probs + kIsMatch + (state << kNumPosBitsMax) + posState;
 					if (_IF_BIT_0(prob, out ttt, out bound, ref range, ref code, ref buf)) {
 						_UPDATE_0(prob, ttt, bound, ref range);
 						prob = probs + kLiteral;
@@ -547,7 +547,7 @@ namespace ManagedLzma {
 							symbol = 1;
 							do {
 								uint bit;
-								P<ushort> probLit;
+								ushort* probLit;
 								matchByte <<= 1;
 								bit = matchByte & offs;
 								probLit = prob + offs + bit + symbol;
@@ -618,7 +618,7 @@ namespace ManagedLzma {
 						}
 						{
 							uint limit2, offset;
-							P<ushort> probLen = prob + kLenChoice;
+							ushort* probLen = prob + kLenChoice;
 							if (_IF_BIT_0(probLen, out ttt, out bound, ref range, ref code, ref buf)) {
 								_UPDATE_0(probLen, ttt, bound, ref range);
 								probLen = prob + kLenLow + (posState << kLenNumLowBits);
@@ -733,9 +733,9 @@ namespace ManagedLzma {
 
 							len -= curLen;
 							if (pos + curLen <= dicBufSize) {
-								P<byte> dest = dic + dicPos;
+								byte* dest = dic + dicPos;
 								long src = pos - dicPos;
-								P<byte> lim = dest + curLen;
+								byte* lim = dest + curLen;
 								dicPos += curLen;
 								do { dest[0] = dest[src]; }
 								while (++dest != lim);
@@ -770,7 +770,7 @@ namespace ManagedLzma {
 
 			private void LzmaDec_WriteRem(long limit) {
 				if (mRemainLen != 0 && mRemainLen < kMatchSpecLenStart) {
-					P<byte> dic = mDic;
+					byte* dic = mDic;
 					long dicPos = mDicPos;
 					long dicBufSize = mDicBufSize;
 					uint len = mRemainLen;
@@ -794,7 +794,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			private int LzmaDec_DecodeReal2(long limit, P<byte> bufLimit) {
+			private int LzmaDec_DecodeReal2(long limit, byte* bufLimit) {
 				do {
 					long limit2 = limit;
 					if (mCheckDicSize == 0) {
@@ -820,11 +820,11 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			private ELzmaDummy LzmaDec_TryDummy(P<byte> buf, long inSize) {
+			private ELzmaDummy LzmaDec_TryDummy(byte* buf, long inSize) {
 				uint range = mRange;
 				uint code = mCode;
-				P<byte> bufLimit = buf + inSize;
-				P<ushort> probs = mProbs;
+				byte* bufLimit = buf + inSize;
+				ushort* probs = mProbs;
 				uint state = mState;
 				ELzmaDummy res;
 
@@ -835,7 +835,7 @@ namespace ManagedLzma {
 					uint ttt;
 					uint posState = mProcessedPos & ((1u << mProp.mPB) - 1);
 
-					P<ushort> prob = probs + kIsMatch + (state << kNumPosBitsMax) + posState;
+					ushort* prob = probs + kIsMatch + (state << kNumPosBitsMax) + posState;
 					if (!_IF_BIT_0_CHECK(out xxx, prob, out ttt, out bound, ref range, ref code, ref buf, bufLimit))
 						return ELzmaDummy.DUMMY_ERROR;
 					if (xxx) {
@@ -864,7 +864,7 @@ namespace ManagedLzma {
 							do {
 								matchByte <<= 1;
 								uint bit = matchByte & offs;
-								P<ushort> probLit = prob + offs + bit + symbol;
+								ushort* probLit = prob + offs + bit + symbol;
 								if (!_GET_BIT2_CHECK(probLit, ref symbol, delegate { offs &= ~bit; }, delegate { offs &= bit; }, out ttt, ref bound, ref range, ref code, ref buf, bufLimit))
 									return ELzmaDummy.DUMMY_ERROR;
 							}
@@ -932,7 +932,7 @@ namespace ManagedLzma {
 						}
 						{
 							uint limit, offset;
-							P<ushort> probLen = prob + kLenChoice;
+							ushort* probLen = prob + kLenChoice;
 							if (!_IF_BIT_0_CHECK(out xxx, probLen, out ttt, out bound, ref range, ref code, ref buf, bufLimit))
 								return ELzmaDummy.DUMMY_ERROR;
 							if (xxx) {
@@ -1010,7 +1010,7 @@ namespace ManagedLzma {
 				return res;
 			}
 
-			private void LzmaDec_InitRc(P<byte> data) {
+			private void LzmaDec_InitRc(byte* data) {
 				mCode = ((uint)data[1] << 24) | ((uint)data[2] << 16) | ((uint)data[3] << 8) | data[4];
 				mRange = 0xFFFFFFFF;
 				mNeedFlush = false;
@@ -1056,7 +1056,7 @@ namespace ManagedLzma {
 
 #pragma warning disable IDE1006
 
-			private static void _NORMALIZE(ref uint range, ref uint code, ref P<byte> buf) {
+			private static void _NORMALIZE(ref uint range, ref uint code, ref byte* buf) {
 				if (range < kTopValue) {
 					range <<= 8;
 					code = (code << 8) | buf[0];
@@ -1064,25 +1064,25 @@ namespace ManagedLzma {
 				}
 			}
 
-			private static bool _IF_BIT_0(P<ushort> p, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static bool _IF_BIT_0(ushort* p, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				ttt = p[0];
 				_NORMALIZE(ref range, ref code, ref buf);
 				bound = (range >> kNumBitModelTotalBits) * ttt;
 				return code < bound;
 			}
 
-			private static void _UPDATE_0(P<ushort> p, uint ttt, uint bound, ref uint range) {
+			private static void _UPDATE_0(ushort* p, uint ttt, uint bound, ref uint range) {
 				range = bound;
 				p[0] = (ushort)(ttt + ((kBitModelTotal - ttt) >> kNumMoveBits));
 			}
 
-			private static void _UPDATE_1(P<ushort> p, uint ttt, uint bound, ref uint range, ref uint code) {
+			private static void _UPDATE_1(ushort* p, uint ttt, uint bound, ref uint range, ref uint code) {
 				range -= bound;
 				code -= bound;
 				p[0] = (ushort)(ttt - (ttt >> kNumMoveBits));
 			}
 
-			private static bool _GET_BIT2(P<ushort> p, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static bool _GET_BIT2(ushort* p, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				if (_IF_BIT_0(p, out ttt, out bound, ref range, ref code, ref buf)) {
 					_UPDATE_0(p, ttt, bound, ref range);
 					i += i;
@@ -1095,26 +1095,26 @@ namespace ManagedLzma {
 				}
 			}
 
-			private static void _GET_BIT(P<ushort> p, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static void _GET_BIT(ushort* p, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				_GET_BIT2(p, ref i, out ttt, out bound, ref range, ref code, ref buf);
 			}
 
-			private static void _TREE_GET_BIT(P<ushort> probs, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static void _TREE_GET_BIT(ushort* probs, ref uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				_GET_BIT(probs + i, ref i, out ttt, out bound, ref range, ref code, ref buf);
 			}
 
-			private static void _TREE_DECODE(P<ushort> probs, uint limit, out uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static void _TREE_DECODE(ushort* probs, uint limit, out uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				i = 1;
 				do { _TREE_GET_BIT(probs, ref i, out ttt, out bound, ref range, ref code, ref buf); }
 				while (i < limit);
 				i -= limit;
 			}
 
-			private static void _TREE_6_DECODE(P<ushort> probs, out uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf) {
+			private static void _TREE_6_DECODE(ushort* probs, out uint i, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf) {
 				_TREE_DECODE(probs, 1 << 6, out i, out ttt, out bound, ref range, ref code, ref buf);
 			}
 
-			private static bool _NORMALIZE_CHECK(ref uint range, ref uint code, ref P<byte> buf, P<byte> bufLimit) {
+			private static bool _NORMALIZE_CHECK(ref uint range, ref uint code, ref byte* buf, byte* bufLimit) {
 				if (range < kTopValue) {
 					if (buf >= bufLimit)
 						return false; // ELzmaDummy.DUMMY_ERROR;
@@ -1127,7 +1127,7 @@ namespace ManagedLzma {
 				return true;
 			}
 
-			private static bool _IF_BIT_0_CHECK(out bool result, P<ushort> p, out uint ttt, out uint bound, ref uint range, ref uint code, ref P<byte> buf, P<byte> bufLimit) {
+			private static bool _IF_BIT_0_CHECK(out bool result, ushort* p, out uint ttt, out uint bound, ref uint range, ref uint code, ref byte* buf, byte* bufLimit) {
 				ttt = p[0];
 				if (!_NORMALIZE_CHECK(ref range, ref code, ref buf, bufLimit)) {
 					result = false;
@@ -1148,7 +1148,7 @@ namespace ManagedLzma {
 				code -= bound;
 			}
 
-			private static bool _GET_BIT2_CHECK(P<ushort> p, ref uint i, Action A0, Action A1, out uint ttt, ref uint bound, ref uint range, ref uint code, ref P<byte> buf, P<byte> bufLimit) {
+			private static bool _GET_BIT2_CHECK(ushort* p, ref uint i, Action A0, Action A1, out uint ttt, ref uint bound, ref uint range, ref uint code, ref byte* buf, byte* bufLimit) {
 				bool xxx;
 				if (!_IF_BIT_0_CHECK(out xxx, p, out ttt, out bound, ref range, ref code, ref buf, bufLimit))
 					return false;
@@ -1165,11 +1165,11 @@ namespace ManagedLzma {
 				return true;
 			}
 
-			private static bool _GET_BIT_CHECK(P<ushort> p, ref uint i, out uint ttt, ref uint bound, ref uint range, ref uint code, ref P<byte> buf, P<byte> bufLimit) {
+			private static bool _GET_BIT_CHECK(ushort* p, ref uint i, out uint ttt, ref uint bound, ref uint range, ref uint code, ref byte* buf, byte* bufLimit) {
 				return _GET_BIT2_CHECK(p, ref i, delegate { }, delegate { }, out ttt, ref bound, ref range, ref code, ref buf, bufLimit);
 			}
 
-			private static bool _TREE_DECODE_CHECK(P<ushort> probs, uint limit, out uint i, out uint ttt, ref uint bound, ref uint range, ref uint code, ref P<byte> buf, P<byte> bufLimit) {
+			private static bool _TREE_DECODE_CHECK(ushort* probs, uint limit, out uint i, out uint ttt, ref uint bound, ref uint range, ref uint code, ref byte* buf, byte* bufLimit) {
 				i = 1;
 				do {
 					if (!_GET_BIT_CHECK(probs + i, ref i, out ttt, ref bound, ref range, ref code, ref buf, bufLimit))
@@ -1239,7 +1239,7 @@ namespace ManagedLzma {
 		  SZ_ERROR_INPUT_EOF - It needs more bytes in input buffer (src).
 		*/
 
-		public static int LzmaDecode(P<byte> dest, ref long destLen, P<byte> src, ref long srcLen, P<byte> propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status, SzAlloc alloc) {
+		public static int LzmaDecode(byte* dest, ref long destLen, byte* src, ref long srcLen, byte* propData, uint propSize, ELzmaFinishMode finishMode, out ELzmaStatus status, SzAlloc alloc) {
 			long outSize = destLen;
 			long inSize = srcLen;
 			destLen = 0;
@@ -1292,9 +1292,9 @@ namespace ManagedLzma {
         */
 
 		public static int LzmaUncompress(
-			P<byte> dest, ref long destLen,
-			P<byte> src, ref long srcLen,
-			P<byte> props, long propsSize) {
+			byte* dest, ref long destLen,
+			byte* src, ref long srcLen,
+			byte* props, long propsSize) {
 			return LzmaDecode(dest, ref destLen, src, ref srcLen, props, (uint)propsSize, ELzmaFinishMode.LZMA_FINISH_ANY, out _, SzAlloc.SmallAlloc);
 		}
 	}

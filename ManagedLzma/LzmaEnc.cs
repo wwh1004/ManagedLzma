@@ -303,7 +303,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			internal void LenEnc_SetPrices(uint posState, uint numSymbols, P<uint> prices, P<uint> probPrices) {
+			internal void LenEnc_SetPrices(uint posState, uint numSymbols, uint* prices, uint* probPrices) {
 				uint a0 = CLzmaEnc.GET_PRICE_0(probPrices, mChoice);
 				uint a1 = CLzmaEnc.GET_PRICE_1(probPrices, mChoice);
 				uint b0 = a1 + CLzmaEnc.GET_PRICE_0(probPrices, mChoice2);
@@ -354,17 +354,17 @@ namespace ManagedLzma {
 					mCounters[i] = other.mCounters[i];
 			}
 
-			private void LenPriceEnc_UpdateTable(uint posState, P<uint> probPrices) {
+			private void LenPriceEnc_UpdateTable(uint posState, uint* probPrices) {
 				LenEnc_SetPrices(posState, mTableSize, mPrices[posState], probPrices);
 				mCounters[posState] = mTableSize;
 			}
 
-			internal void LenPriceEnc_UpdateTables(uint numPosStates, P<uint> probPrices) {
+			internal void LenPriceEnc_UpdateTables(uint numPosStates, uint* probPrices) {
 				for (uint posState = 0; posState < numPosStates; posState++)
 					LenPriceEnc_UpdateTable(posState, probPrices);
 			}
 
-			internal void LenEnc_Encode2(CRangeEnc rc, uint symbol, uint posState, bool updatePrice, P<uint> probPrices) {
+			internal void LenEnc_Encode2(CRangeEnc rc, uint symbol, uint posState, bool updatePrice, uint* probPrices) {
 				LenEnc_Encode(rc, symbol, posState);
 
 				if (updatePrice) {
@@ -387,9 +387,9 @@ namespace ManagedLzma {
 			public byte mCache;
 			public ulong mLow;
 			public ulong mCacheSize;
-			public P<byte> mBuf;
-			public P<byte> mBufLim;
-			public P<byte> mBufBase;
+			public byte* mBuf;
+			public byte* mBufLim;
+			public byte* mBufBase;
 			public ISeqOutStream mOutStream;
 			public ulong mProcessed;
 			public int mRes;
@@ -451,7 +451,7 @@ namespace ManagedLzma {
 				if ((uint)mLow < 0xFF000000 || (int)(mLow >> 32) != 0) {
 					byte temp = mCache;
 					do {
-						P<byte> buf = mBuf;
+						byte* buf = mBuf;
 						buf[0] = (byte)(temp + (byte)(mLow >> 32));
 						buf++;
 						mBuf = buf;
@@ -485,7 +485,7 @@ namespace ManagedLzma {
 				while (numBits != 0);
 			}
 
-			internal void RangeEnc_EncodeBit(P<ushort> prob, uint symbol) { RangeEnc_EncodeBit(ref prob.mBuffer[prob.mOffset], symbol); }
+			internal void RangeEnc_EncodeBit(ushort* prob, uint symbol) { RangeEnc_EncodeBit(ref prob.mBuffer[prob.mOffset], symbol); }
 			internal void RangeEnc_EncodeBit(ref ushort prob, uint symbol) {
 				uint temp = prob;
 
@@ -551,7 +551,7 @@ namespace ManagedLzma {
 
 			#region Variables
 
-			public P<byte> mBuffer;
+			public byte* mBuffer;
 			public uint mPos;
 			public uint mPosLimit;
 			public uint mStreamPos;
@@ -562,11 +562,11 @@ namespace ManagedLzma {
 
 			public uint mMatchMaxLen;
 			public uint[] mHash;
-			public P<uint> mSon;
+			public uint* mSon;
 			public uint mHashMask;
 			public uint mCutValue;
 
-			public P<byte> mBufferBase;
+			public byte* mBufferBase;
 			public ISeqInStream mStream;
 			public bool mStreamEndWasReached;
 
@@ -605,7 +605,7 @@ namespace ManagedLzma {
 				return mBufferBase + mBlockSize - mBuffer <= mKeepSizeAfter;
 			}
 
-			internal P<byte> MatchFinder_GetPointerToCurrentPos() {
+			internal byte* MatchFinder_GetPointerToCurrentPos() {
 				return mBuffer;
 			}
 
@@ -678,7 +678,7 @@ namespace ManagedLzma {
 
 				for (; ; )
 				{
-					P<byte> dest = mBuffer + (mStreamPos - mPos);
+					byte* dest = mBuffer + (mStreamPos - mPos);
 					long size = mBufferBase + mBlockSize - dest;
 					if (size == 0)
 						return;
@@ -849,7 +849,7 @@ namespace ManagedLzma {
 				return (mPos - mHistorySize - 1) & kNormalizeMask;
 			}
 
-			internal static void MatchFinder_Normalize3(uint subValue, P<uint> items, uint numItems) {
+			internal static void MatchFinder_Normalize3(uint subValue, uint* items, uint numItems) {
 				for (uint i = 0; i < numItems; i++) {
 					uint value = items[i];
 					if (value <= subValue)
@@ -879,7 +879,7 @@ namespace ManagedLzma {
 				MatchFinder_SetLimits();
 			}
 
-			private static P<uint> Hc_GetMatchesSpec(uint lenLimit, uint curMatch, uint pos, P<byte> cur, P<uint> son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue, P<uint> distances, uint maxLen) {
+			private static uint* Hc_GetMatchesSpec(uint lenLimit, uint curMatch, uint pos, byte* cur, uint* son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue, uint* distances, uint maxLen) {
 				son[_cyclicBufferPos] = curMatch;
 
 				for (; ; )
@@ -888,7 +888,7 @@ namespace ManagedLzma {
 					if (cutValue-- == 0 || delta >= _cyclicBufferSize)
 						return distances;
 
-					P<byte> pb = cur - delta;
+					byte* pb = cur - delta;
 					curMatch = son[_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)];
 					if (pb[maxLen] == cur[maxLen] && pb[0] == cur[0]) {
 						uint len = 0;
@@ -908,9 +908,9 @@ namespace ManagedLzma {
 				}
 			}
 
-			internal static P<uint> GetMatchesSpec1(uint lenLimit, uint curMatch, uint pos, P<byte> cur, P<uint> son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue, P<uint> distances, uint maxLen) {
-				P<uint> ptr0 = son + (_cyclicBufferPos << 1) + 1;
-				P<uint> ptr1 = son + (_cyclicBufferPos << 1);
+			internal static uint* GetMatchesSpec1(uint lenLimit, uint curMatch, uint pos, byte* cur, uint* son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue, uint* distances, uint maxLen) {
+				uint* ptr0 = son + (_cyclicBufferPos << 1) + 1;
+				uint* ptr1 = son + (_cyclicBufferPos << 1);
 				uint len0 = 0;
 				uint len1 = 0;
 
@@ -922,8 +922,8 @@ namespace ManagedLzma {
 						return distances;
 					}
 
-					P<uint> pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
-					P<byte> pb = cur - delta;
+					uint* pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
+					byte* pb = cur - delta;
 					uint len = len0 < len1 ? len0 : len1;
 
 					if (pb[len] == cur[len]) {
@@ -961,9 +961,9 @@ namespace ManagedLzma {
 				}
 			}
 
-			private static void SkipMatchesSpec(uint lenLimit, uint curMatch, uint pos, P<byte> cur, P<uint> son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue) {
-				P<uint> ptr0 = son + (_cyclicBufferPos << 1) + 1;
-				P<uint> ptr1 = son + (_cyclicBufferPos << 1);
+			private static void SkipMatchesSpec(uint lenLimit, uint curMatch, uint pos, byte* cur, uint* son, uint _cyclicBufferPos, uint _cyclicBufferSize, uint cutValue) {
+				uint* ptr0 = son + (_cyclicBufferPos << 1) + 1;
+				uint* ptr1 = son + (_cyclicBufferPos << 1);
 				uint len0 = 0;
 				uint len1 = 0;
 
@@ -975,8 +975,8 @@ namespace ManagedLzma {
 						return;
 					}
 
-					P<uint> pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
-					P<byte> pb = cur - delta;
+					uint* pair = son + ((_cyclicBufferPos - delta + ((delta > _cyclicBufferPos) ? _cyclicBufferSize : 0)) << 1);
+					byte* pb = cur - delta;
 					uint len = len0 < len1 ? len0 : len1;
 
 					if (pb[len] == cur[len]) {
@@ -1015,14 +1015,14 @@ namespace ManagedLzma {
 					MatchFinder_CheckLimits();
 			}
 
-			internal uint Bt2_MatchFinder_GetMatches(P<uint> distances) {
+			internal uint Bt2_MatchFinder_GetMatches(uint* distances) {
 				uint lenLimit = mLenLimit;
 				if (lenLimit < 2) {
 					MatchFinder_MovePos();
 					return 0;
 				}
 
-				P<byte> cur = mBuffer;
+				byte* cur = mBuffer;
 				uint hashValue = cur[0] | ((uint)cur[1] << 8);
 				uint curMatch = mHash[hashValue];
 				mHash[hashValue] = mPos;
@@ -1039,14 +1039,14 @@ namespace ManagedLzma {
 				return offset;
 			}
 
-			internal uint Bt3_MatchFinder_GetMatches(P<uint> distances) {
+			internal uint Bt3_MatchFinder_GetMatches(uint* distances) {
 				uint lenLimit = mLenLimit;
 				if (lenLimit < 3) {
 					MatchFinder_MovePos();
 					return 0;
 				}
 
-				P<byte> cur = mBuffer;
+				byte* cur = mBuffer;
 
 				uint temp = crc[cur[0]] ^ cur[1];
 				uint hash2Value = temp & (kHash2Size - 1);
@@ -1097,14 +1097,14 @@ namespace ManagedLzma {
 				return offset;
 			}
 
-			internal uint Bt4_MatchFinder_GetMatches(P<uint> distances) {
+			internal uint Bt4_MatchFinder_GetMatches(uint* distances) {
 				uint lenLimit = mLenLimit;
 				if (lenLimit < 4) {
 					MatchFinder_MovePos();
 					return 0;
 				}
 
-				P<byte> cur = mBuffer;
+				byte* cur = mBuffer;
 
 				uint temp = crc[cur[0]] ^ cur[1];
 				uint hash2Value = temp & (kHash2Size - 1);
@@ -1167,14 +1167,14 @@ namespace ManagedLzma {
 				return offset;
 			}
 
-			internal uint Hc4_MatchFinder_GetMatches(P<uint> distances) {
+			internal uint Hc4_MatchFinder_GetMatches(uint* distances) {
 				uint lenLimit = mLenLimit;
 				if (lenLimit < 4) {
 					MatchFinder_MovePos();
 					return 0;
 				}
 
-				P<byte> cur = mBuffer;
+				byte* cur = mBuffer;
 
 				uint temp = crc[cur[0]] ^ cur[1];
 				uint hash2Value = temp & (kHash2Size - 1);
@@ -1245,7 +1245,7 @@ namespace ManagedLzma {
 						continue;
 					}
 
-					P<byte> cur = mBuffer;
+					byte* cur = mBuffer;
 					uint hashValue = cur[0] | ((uint)cur[1] << 8);
 
 					uint curMatch = mHash[hashValue];
@@ -1271,7 +1271,7 @@ namespace ManagedLzma {
 						continue;
 					}
 
-					P<byte> cur = mBuffer;
+					byte* cur = mBuffer;
 					uint temp = crc[cur[0]] ^ cur[1];
 					uint hash2Value = temp & (kHash2Size - 1);
 					uint hashValue = (temp ^ ((uint)cur[2] << 8)) & mHashMask;
@@ -1300,7 +1300,7 @@ namespace ManagedLzma {
 						continue;
 					}
 
-					P<byte> cur = mBuffer;
+					byte* cur = mBuffer;
 					uint temp = crc[cur[0]] ^ cur[1];
 					uint hash2Value = temp & (kHash2Size - 1);
 					uint hash3Value = (temp ^ ((uint)cur[2] << 8)) & (kHash3Size - 1);
@@ -1331,7 +1331,7 @@ namespace ManagedLzma {
 						continue;
 					}
 
-					P<byte> cur = mBuffer;
+					byte* cur = mBuffer;
 					uint temp = crc[cur[0]] ^ cur[1];
 					uint hash2Value = temp & (kHash2Size - 1);
 					uint hash3Value = (temp ^ ((uint)cur[2] << 8)) & (kHash3Size - 1);
@@ -1379,8 +1379,8 @@ namespace ManagedLzma {
 			void Init(object p);
 			byte GetIndexByte(object p, int index);
 			uint GetNumAvailableBytes(object p);
-			P<byte> GetPointerToCurrentPos(object p);
-			uint GetMatches(object p, P<uint> distances);
+			byte* GetPointerToCurrentPos(object p);
+			uint GetMatches(object p, uint* distances);
 			void Skip(object p, uint num);
 		}
 
@@ -1408,16 +1408,16 @@ namespace ManagedLzma {
 				return ((CMatchFinder)p).MatchFinder_GetNumAvailableBytes();
 			}
 
-			public P<byte> GetPointerToCurrentPos(object p) {
+			public byte* GetPointerToCurrentPos(object p) {
 				return ((CMatchFinder)p).MatchFinder_GetPointerToCurrentPos();
 			}
 
-			public abstract uint GetMatches(object p, P<uint> distances);
+			public abstract uint GetMatches(object p, uint* distances);
 			public abstract void Skip(object p, uint num);
 		}
 
 		private sealed class MatchFinderHc4 : MatchFinderBase {
-			public override uint GetMatches(object p, P<uint> distances) {
+			public override uint GetMatches(object p, uint* distances) {
 				return ((CMatchFinder)p).Hc4_MatchFinder_GetMatches(distances);
 			}
 
@@ -1427,7 +1427,7 @@ namespace ManagedLzma {
 		}
 
 		private sealed class MatchFinderBt2 : MatchFinderBase {
-			public override uint GetMatches(object p, P<uint> distances) {
+			public override uint GetMatches(object p, uint* distances) {
 				return ((CMatchFinder)p).Bt2_MatchFinder_GetMatches(distances);
 			}
 
@@ -1437,7 +1437,7 @@ namespace ManagedLzma {
 		}
 
 		private sealed class MatchFinderBt3 : MatchFinderBase {
-			public override uint GetMatches(object p, P<uint> distances) {
+			public override uint GetMatches(object p, uint* distances) {
 				return ((CMatchFinder)p).Bt3_MatchFinder_GetMatches(distances);
 			}
 
@@ -1447,7 +1447,7 @@ namespace ManagedLzma {
 		}
 
 		private sealed class MatchFinderBt4 : MatchFinderBase {
-			public override uint GetMatches(object p, P<uint> distances) {
+			public override uint GetMatches(object p, uint* distances) {
 				return ((CMatchFinder)p).Bt4_MatchFinder_GetMatches(distances);
 			}
 
@@ -1565,7 +1565,7 @@ namespace ManagedLzma {
 
 			private const int kInfinityPrice = 1 << 30;
 
-			private static void LitEnc_Encode(CRangeEnc p, P<ushort> probs, uint symbol) {
+			private static void LitEnc_Encode(CRangeEnc p, ushort* probs, uint symbol) {
 				symbol |= 0x100;
 				do {
 					p.RangeEnc_EncodeBit(probs + (symbol >> 8), (symbol >> 7) & 1);
@@ -1574,7 +1574,7 @@ namespace ManagedLzma {
 				while (symbol < 0x10000);
 			}
 
-			private static void LitEnc_EncodeMatched(CRangeEnc p, P<ushort> probs, uint symbol, uint matchByte) {
+			private static void LitEnc_EncodeMatched(CRangeEnc p, ushort* probs, uint symbol, uint matchByte) {
 				uint offs = 0x100;
 				symbol |= 0x100;
 				do {
@@ -1586,7 +1586,7 @@ namespace ManagedLzma {
 				while (symbol < 0x10000);
 			}
 
-			internal static void LzmaEnc_InitPriceTables(P<uint> probPrices) {
+			internal static void LzmaEnc_InitPriceTables(uint* probPrices) {
 				for (uint i = (1 << kNumMoveReducingBits) / 2; i < kBitModelTotal; i += 1 << kNumMoveReducingBits) {
 					const int kCyclesBits = kNumBitPriceShiftBits;
 
@@ -1605,7 +1605,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			internal static uint GET_PRICE(P<uint> probPrices, ushort prob, uint symbol) {
+			internal static uint GET_PRICE(uint* probPrices, ushort prob, uint symbol) {
 				//return symbol == 0
 				//    ? GET_PRICE_0(probPrices, prob)
 				//    : GET_PRICE_1(probPrices, prob);
@@ -1613,15 +1613,15 @@ namespace ManagedLzma {
 				return probPrices[(prob ^ ((-(int)symbol) & (kBitModelTotal - 1))) >> kNumMoveReducingBits];
 			}
 
-			internal static uint GET_PRICE_0(P<uint> probPrices, ushort prob) {
+			internal static uint GET_PRICE_0(uint* probPrices, ushort prob) {
 				return probPrices[prob >> kNumMoveReducingBits];
 			}
 
-			internal static uint GET_PRICE_1(P<uint> probPrices, ushort prob) {
+			internal static uint GET_PRICE_1(uint* probPrices, ushort prob) {
 				return probPrices[(prob ^ (kBitModelTotal - 1)) >> kNumMoveReducingBits];
 			}
 
-			private static uint LitEnc_GetPrice(P<ushort> probs, uint symbol, P<uint> probPrices) {
+			private static uint LitEnc_GetPrice(ushort* probs, uint symbol, uint* probPrices) {
 				uint price = 0;
 				symbol |= 0x100;
 				do {
@@ -1632,7 +1632,7 @@ namespace ManagedLzma {
 				return price;
 			}
 
-			private static uint LitEnc_GetPriceMatched(P<ushort> probs, uint symbol, uint matchByte, P<uint> probPrices) {
+			private static uint LitEnc_GetPriceMatched(ushort* probs, uint symbol, uint matchByte, uint* probPrices) {
 				uint price = 0;
 				uint offs = 0x100;
 				symbol |= 0x100;
@@ -1646,7 +1646,7 @@ namespace ManagedLzma {
 				return price;
 			}
 
-			internal static void RcTree_Encode(CRangeEnc rc, P<ushort> probs, int numBitLevels, uint symbol) {
+			internal static void RcTree_Encode(CRangeEnc rc, ushort* probs, int numBitLevels, uint symbol) {
 				uint m = 1;
 				for (int i = numBitLevels; i != 0;) {
 					i--;
@@ -1656,7 +1656,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			private static void RcTree_ReverseEncode(CRangeEnc rc, P<ushort> probs, int numBitLevels, uint symbol) {
+			private static void RcTree_ReverseEncode(CRangeEnc rc, ushort* probs, int numBitLevels, uint symbol) {
 				uint m = 1;
 				for (int i = 0; i < numBitLevels; i++) {
 					uint bit = symbol & 1;
@@ -1666,7 +1666,7 @@ namespace ManagedLzma {
 				}
 			}
 
-			internal static uint RcTree_GetPrice(P<ushort> probs, int numBitLevels, uint symbol, P<uint> ProbPrices) {
+			internal static uint RcTree_GetPrice(ushort* probs, int numBitLevels, uint symbol, uint* ProbPrices) {
 				uint price = 0;
 				symbol |= 1u << numBitLevels;
 				while (symbol != 1) {
@@ -1676,7 +1676,7 @@ namespace ManagedLzma {
 				return price;
 			}
 
-			private static uint RcTree_ReverseGetPrice(P<ushort> probs, int numBitLevels, uint symbol, P<uint> probPrices) {
+			private static uint RcTree_ReverseGetPrice(ushort* probs, int numBitLevels, uint symbol, uint* probPrices) {
 				uint price = 0;
 				uint m = 1;
 				for (int i = numBitLevels; i != 0; i--) {
@@ -1688,7 +1688,7 @@ namespace ManagedLzma {
 				return price;
 			}
 
-			private P<ushort> LIT_PROBS(uint pos, byte prevByte) {
+			private ushort* LIT_PROBS(uint pos, byte prevByte) {
 				return P.From(mLitProbs, (((pos & mLpMask) << mLC) + ((uint)prevByte >> (8 - mLC))) * 0x300);
 			}
 
@@ -1697,11 +1697,11 @@ namespace ManagedLzma {
 			}
 
 			private sealed class CSeqOutStreamBuf : ISeqOutStream {
-				public P<byte> mData;
+				public byte* mData;
 				public long mRem;
 				public bool mOverflow;
 
-				public long Write(P<byte> data, long size) {
+				public long Write(byte* data, long size) {
 					if (mRem < size) {
 						size = mRem;
 						mOverflow = true;
@@ -1844,7 +1844,7 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			public int LzmaEnc_WriteProperties(P<byte> props, ref long size) {
+			public int LzmaEnc_WriteProperties(byte* props, ref long size) {
 				uint dictSize = mDictSize;
 				if (size < LZMA_PROPS_SIZE)
 					return SZ_ERROR_PARAM;
@@ -1876,7 +1876,7 @@ namespace ManagedLzma {
 				return LzmaEnc_Encode2(progress);
 			}
 
-			public int LzmaEnc_MemEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+			public int LzmaEnc_MemEncode(byte* dest, ref long destLen, byte* src, long srcLen, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
 				CSeqOutStreamBuf outStream = new CSeqOutStreamBuf();
 
 				LzmaEnc_SetInputBuf(src, srcLen);
@@ -1959,7 +1959,7 @@ namespace ManagedLzma {
 
 			private uint GetOptimum(uint position, out uint backRes) {
 				OptimumReps reps = new OptimumReps();
-				P<uint> matches;
+				uint* matches;
 				uint numAvail;
 				uint lenEnd;
 
@@ -1992,12 +1992,12 @@ namespace ManagedLzma {
 					if (numAvail > LZMA_MATCH_LEN_MAX)
 						numAvail = LZMA_MATCH_LEN_MAX;
 
-					P<byte> data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
+					byte* data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
 					OptimumReps repLens = new OptimumReps();
 					uint repMaxIndex = 0;
 					for (uint i = 0; i < LZMA_NUM_REPS; i++) {
 						reps[i] = mReps[i];
-						P<byte> data2 = data - (reps[i] + 1);
+						byte* data2 = data - (reps[i] + 1);
 						if (data[0] != data2[0] || data[1] != data2[1]) {
 							repLens[i] = 0;
 							continue;
@@ -2040,7 +2040,7 @@ namespace ManagedLzma {
 					uint posState = position & mPbMask;
 
 					{
-						P<ushort> probs = LIT_PROBS(position, (data - 1)[0]);
+						ushort* probs = LIT_PROBS(position, (data - 1)[0]);
 						mOpt[1].mPrice = GET_PRICE_0(mIsMatch[mState][posState]) +
 							(!IsCharState(mState) ?
 							  LitEnc_GetPriceMatched(probs, curByte, matchByte, mProbPrices) :
@@ -2205,7 +2205,7 @@ namespace ManagedLzma {
 
 					uint curPrice = curOpt.mPrice;
 					bool nextIsChar = false;
-					P<byte> data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
+					byte* data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
 					byte curByte = data[0];
 					byte matchByte = (data - (reps._0 + 1))[0];
 
@@ -2213,7 +2213,7 @@ namespace ManagedLzma {
 
 					uint curAnd1Price = curPrice + GET_PRICE_0(mIsMatch[state][posState]);
 					{
-						P<ushort> probs = LIT_PROBS(position, data[-1]);
+						ushort* probs = LIT_PROBS(position, data[-1]);
 						if (!IsCharState(state))
 							curAnd1Price += LitEnc_GetPriceMatched(probs, curByte, matchByte, mProbPrices);
 						else
@@ -2251,7 +2251,7 @@ namespace ManagedLzma {
 					if (!nextIsChar && matchByte != curByte) /* speed optimization */
 					{
 						/* try Literal + rep0 */
-						P<byte> data2 = data - (reps._0 + 1);
+						byte* data2 = data - (reps._0 + 1);
 						uint limit = mNumFastBytes + 1;
 						if (limit > numAvailFull)
 							limit = numAvailFull;
@@ -2286,7 +2286,7 @@ namespace ManagedLzma {
 					uint startLen = 2; /* speed optimization */
 
 					for (uint repIndex = 0; repIndex < LZMA_NUM_REPS; repIndex++) {
-						P<byte> data2 = data - (reps[repIndex] + 1);
+						byte* data2 = data - (reps[repIndex] + 1);
 						if (data[0] != data2[0] || data[1] != data2[1])
 							continue;
 
@@ -2404,7 +2404,7 @@ namespace ManagedLzma {
 
 							if (lenTest == matches[offs]) {
 								/* Try Match + Literal + Rep0 */
-								P<byte> data2 = data - (curBack + 1);
+								byte* data2 = data - (curBack + 1);
 								uint lenTest2 = lenTest + 1;
 								uint limit = lenTest2 + mNumFastBytes;
 								uint nextRepMatchPrice;
@@ -2479,12 +2479,12 @@ namespace ManagedLzma {
 					return 1;
 				if (numAvail > LZMA_MATCH_LEN_MAX)
 					numAvail = LZMA_MATCH_LEN_MAX;
-				P<byte> data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
+				byte* data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
 
 				uint repLen = 0;
 				uint repIndex = 0;
 				for (uint i = 0; i < LZMA_NUM_REPS; i++) {
-					P<byte> data2 = data - (mReps[i] + 1);
+					byte* data2 = data - (mReps[i] + 1);
 					if (data[0] != data2[0] || data[1] != data2[1])
 						continue;
 
@@ -2504,7 +2504,7 @@ namespace ManagedLzma {
 					}
 				}
 
-				P<uint> matches = mMatches;
+				uint* matches = mMatches;
 				if (mainLen >= mNumFastBytes) {
 					backRes = matches[numPairs - 1] + LZMA_NUM_REPS;
 					MovePos(mainLen - 1);
@@ -2551,7 +2551,7 @@ namespace ManagedLzma {
 
 				data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
 				for (uint i = 0; i < LZMA_NUM_REPS; i++) {
-					P<byte> data2 = data - (mReps[i] + 1);
+					byte* data2 = data - (mReps[i] + 1);
 					if (data[0] != data2[0] || data[1] != data2[1])
 						continue;
 
@@ -2628,8 +2628,8 @@ namespace ManagedLzma {
 				}
 
 				for (uint lenToPosState = 0; lenToPosState < kNumLenToPosStates; lenToPosState++) {
-					P<ushort> encoder = mPosSlotEncoder[lenToPosState];
-					P<uint> posSlotPrices = mPosSlotPrices[lenToPosState];
+					ushort* encoder = mPosSlotEncoder[lenToPosState];
+					uint* posSlotPrices = mPosSlotPrices[lenToPosState];
 
 					for (uint posSlot = 0; posSlot < mDistTableSize; posSlot++)
 						posSlotPrices[posSlot] = RcTree_GetPrice(encoder, kNumPosSlotBits, posSlot, mProbPrices);
@@ -2638,7 +2638,7 @@ namespace ManagedLzma {
 						posSlotPrices[posSlot] += ((posSlot >> 1) - 1 - kNumAlignBits) << kNumBitPriceShiftBits;
 
 					{
-						P<uint> distancesPrices = mDistancesPrices[lenToPosState];
+						uint* distancesPrices = mDistancesPrices[lenToPosState];
 						uint i = 0;
 						for (; i < kStartPosModelIndex; i++)
 							distancesPrices[i] = posSlotPrices[i];
@@ -2708,9 +2708,9 @@ namespace ManagedLzma {
 						uint posState = nowPos32 & mPbMask;
 						if (len == 1 && pos == ~0u) {
 							mRC.RangeEnc_EncodeBit(ref mIsMatch[mState][posState], 0);
-							P<byte> data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - mAdditionalOffset;
+							byte* data = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - mAdditionalOffset;
 							byte curByte = data[0];
-							P<ushort> probs = LIT_PROBS(nowPos32, (data - 1)[0]);
+							ushort* probs = LIT_PROBS(nowPos32, (data - 1)[0]);
 
 							if (IsCharState(mState))
 								LitEnc_Encode(mRC, probs, curByte);
@@ -2873,7 +2873,7 @@ namespace ManagedLzma {
 					mLitProbs[i] = kProbInitValue;
 
 				for (uint i = 0; i < kNumLenToPosStates; i++) {
-					P<ushort> probs = mPosSlotEncoder[i];
+					ushort* probs = mPosSlotEncoder[i];
 					for (uint j = 0; j < (1 << kNumPosSlotBits); j++)
 						probs[j] = kProbInitValue;
 				}
@@ -2931,7 +2931,7 @@ namespace ManagedLzma {
 				return SZ_OK;
 			}
 
-			internal void LzmaEnc_SetInputBuf(P<byte> src, long srcLen) {
+			internal void LzmaEnc_SetInputBuf(byte* src, long srcLen) {
 				mMatchFinderBase.mDirectInput = true;
 				mMatchFinderBase.mBufferBase = src;
 				mMatchFinderBase.mDirectInputRem = srcLen;
@@ -2950,7 +2950,7 @@ namespace ManagedLzma {
 				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
 			}
 
-			internal int LzmaEnc_MemPrepare(P<byte> src, long srcLen, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
+			internal int LzmaEnc_MemPrepare(byte* src, long srcLen, uint keepWindowSize, SzAlloc alloc, SzAlloc allocBig) {
 				LzmaEnc_SetInputBuf(src, srcLen);
 				mNeedInit = true;
 				return LzmaEnc_AllocAndInit(keepWindowSize, alloc, allocBig);
@@ -2963,11 +2963,11 @@ namespace ManagedLzma {
 				return mMatchFinder.GetNumAvailableBytes(mMatchFinderObj);
 			}
 
-			internal P<byte> LzmaEnc_GetCurBuf() {
+			internal byte* LzmaEnc_GetCurBuf() {
 				return mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - mAdditionalOffset;
 			}
 
-			internal int LzmaEnc_CodeOneMemBlock(bool reInit, P<byte> dest, ref long destLen, uint desiredPackSize, ref uint unpackSize) {
+			internal int LzmaEnc_CodeOneMemBlock(bool reInit, byte* dest, ref long destLen, uint desiredPackSize, ref uint unpackSize) {
 				CSeqOutStreamBuf outStream = new CSeqOutStreamBuf {
 					mData = dest,
 					mRem = destLen,
@@ -3033,14 +3033,14 @@ namespace ManagedLzma {
 				if (numPairs > 0) {
 					lenRes = mMatches[numPairs - 2];
 					if (lenRes == mNumFastBytes) {
-						P<byte> pby = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
+						byte* pby = mMatchFinder.GetPointerToCurrentPos(mMatchFinderObj) - 1;
 						uint distance = mMatches[numPairs - 1] + 1;
 
 						uint numAvail = mNumAvail;
 						if (numAvail > LZMA_MATCH_LEN_MAX)
 							numAvail = LZMA_MATCH_LEN_MAX;
 
-						P<byte> pby2 = pby - distance;
+						byte* pby2 = pby - distance;
 						while (lenRes < numAvail && pby[lenRes] == pby2[lenRes])
 							lenRes++;
 					}
@@ -3142,7 +3142,7 @@ namespace ManagedLzma {
           SZ_ERROR_THREAD     - errors in multithreading functions (only for Mt version)
         */
 
-		public static int LzmaEncode(P<byte> dest, ref long destLen, P<byte> src, long srcLen, CLzmaEncProps props, P<byte> propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
+		public static int LzmaEncode(byte* dest, ref long destLen, byte* src, long srcLen, CLzmaEncProps props, byte* propsEncoded, ref long propsSize, bool writeEndMark, ICompressProgress progress, SzAlloc alloc, SzAlloc allocBig) {
 			CLzmaEnc encoder = CLzmaEnc.LzmaEnc_Create();
 			if (encoder == null)
 				return SZ_ERROR_MEM;
@@ -3241,9 +3241,9 @@ namespace ManagedLzma {
         */
 
 		public static int LzmaCompress(
-			P<byte> dest, ref long destLen,
-			P<byte> src, long srcLen,
-			P<byte> outProps, ref long outPropsSize, /* *outPropsSize must be = 5 */
+			byte* dest, ref long destLen,
+			byte* src, long srcLen,
+			byte* outProps, ref long outPropsSize, /* *outPropsSize must be = 5 */
 			int level,      /* 0 <= level <= 9, default = 5 */
 			uint dictSize,  /* default = (1 << 24) */
 			int lc,         /* 0 <= lc <= 8, default = 3  */

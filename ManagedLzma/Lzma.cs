@@ -28,153 +28,6 @@ namespace ManagedLzma {
 
 		#endregion
 
-		#region Pointer
-
-		private static class P {
-			public static P<T> From<T>(T[] buffer, int offset) {
-				return new P<T>(buffer, offset);
-			}
-
-			public static P<T> From<T>(T[] buffer, uint offset) {
-				return new P<T>(buffer, offset);
-			}
-		}
-
-		public struct P<T> {
-			public static P<T> Null {
-				get { return default; }
-			}
-
-			public readonly T[] mBuffer;
-			public readonly int mOffset;
-
-			public P(T[] buffer, int offset = 0) {
-				mBuffer = buffer;
-				mOffset = offset;
-			}
-
-			public P(T[] buffer, uint offset)
-				: this(buffer, (int)offset) {
-			}
-
-			public bool IsNull {
-				get { return mBuffer == null; }
-			}
-
-			public T this[int index] {
-				get { return mBuffer[mOffset + index]; }
-				set { mBuffer[mOffset + index] = value; }
-			}
-
-			public T this[uint index] {
-				get { return this[(int)index]; }
-				set { this[(int)index] = value; }
-			}
-
-			public T this[long index] {
-				get { return this[checked((int)index)]; }
-				set { this[checked((int)index)] = value; }
-			}
-
-			public static bool operator <(P<T> left, P<T> right) {
-				return left.mOffset < right.mOffset;
-			}
-
-			public static bool operator <=(P<T> left, P<T> right) {
-				return left.mOffset <= right.mOffset;
-			}
-
-			public static bool operator >(P<T> left, P<T> right) {
-				return left.mOffset > right.mOffset;
-			}
-
-			public static bool operator >=(P<T> left, P<T> right) {
-				return left.mOffset >= right.mOffset;
-			}
-
-			public static int operator -(P<T> left, P<T> right) {
-				return left.mOffset - right.mOffset;
-			}
-
-			public static P<T> operator -(P<T> left, int right) {
-				return new P<T>(left.mBuffer, left.mOffset - right);
-			}
-
-			public static P<T> operator +(P<T> left, int right) {
-				return new P<T>(left.mBuffer, left.mOffset + right);
-			}
-
-			public static P<T> operator +(P<T> left, long right) {
-				return new P<T>(left.mBuffer, checked((int)(left.mOffset + right)));
-			}
-
-			public static P<T> operator +(int left, P<T> right) {
-				return new P<T>(right.mBuffer, left + right.mOffset);
-			}
-
-			public static P<T> operator -(P<T> left, uint right) {
-				return left - (int)right;
-			}
-
-			public static P<T> operator +(P<T> left, uint right) {
-				return left + (int)right;
-			}
-
-			public static P<T> operator +(uint left, P<T> right) {
-				return (int)left + right;
-			}
-
-			public static P<T> operator ++(P<T> self) {
-				return new P<T>(self.mBuffer, self.mOffset + 1);
-			}
-
-			public static P<T> operator --(P<T> self) {
-				return new P<T>(self.mBuffer, self.mOffset - 1);
-			}
-
-			// This allows us to treat null as Pointer<T>.
-			public static implicit operator P<T>(T[] buffer) {
-				return new P<T>(buffer);
-			}
-
-			#region Identity
-
-			public override int GetHashCode() {
-				int hash = mOffset;
-				if (mBuffer != null)
-					hash += mBuffer.GetHashCode();
-				return hash;
-			}
-
-			public override bool Equals(object obj) {
-				if (obj == null)
-					return mBuffer == null;
-
-				// This will invoke the implicit conversion when obj is T[]
-				var other = obj as P<T>?;
-				return other.HasValue && this == other.Value;
-			}
-
-			public bool Equals(P<T> other) {
-				return mBuffer == other.mBuffer
-					&& mOffset == other.mOffset;
-			}
-
-			public static bool operator ==(P<T> left, P<T> right) {
-				return left.mBuffer == right.mBuffer
-					&& left.mOffset == right.mOffset;
-			}
-
-			public static bool operator !=(P<T> left, P<T> right) {
-				return left.mBuffer != right.mBuffer
-					|| left.mOffset != right.mOffset;
-			}
-
-			#endregion
-		}
-
-		#endregion
-
 		#region Hash
 		internal const int kHash2Size = 1 << 10;
 		internal const int kHash3Size = 1 << 16;
@@ -194,13 +47,13 @@ namespace ManagedLzma {
 		/* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
            (output(*size) < input(*size)) is allowed */
 		public interface ISeqInStream {
-			int Read(P<byte> buf, ref long size);
+			int Read(byte* buf, ref long size);
 		}
 
 		/* Returns: result - the number of actually written bytes.
            (result < size) means error */
 		public interface ISeqOutStream {
-			long Write(P<byte> buf, long size);
+			long Write(byte* buf, long size);
 		}
 
 		/* Returns: result. (result != SZ_OK) means break.
@@ -317,18 +170,18 @@ namespace ManagedLzma {
 
 		private delegate T Func<T>();
 
-		private static void Memcpy(P<byte> dst, P<byte> src, long size) {
+		private static void Memcpy(byte* dst, byte* src, long size) {
 			Memcpy(dst, src, checked((int)size));
 		}
 
-		private static void Memcpy(P<byte> dst, P<byte> src, int size) {
+		private static void Memcpy(byte* dst, byte* src, int size) {
 			if (dst.mBuffer == src.mBuffer && src.mOffset < dst.mOffset + size && dst.mOffset < src.mOffset + size)
 				throw new InvalidOperationException("memcpy cannot handle overlapping regions correctly");
 
 			Buffer.BlockCopy(src.mBuffer, src.mOffset, dst.mBuffer, dst.mOffset, size);
 		}
 
-		private static void Memmove(P<byte> dst, P<byte> src, uint size) {
+		private static void Memmove(byte* dst, byte* src, uint size) {
 			Buffer.BlockCopy(src.mBuffer, src.mOffset, dst.mBuffer, dst.mOffset, checked((int)size));
 		}
 
