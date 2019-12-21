@@ -845,7 +845,7 @@ namespace ManagedLzma {
 
 		internal interface IMatchFinder {
 			void Init(object p);
-			byte GetIndexByte(object p, Int32 index);
+			byte GetIndexByte(object p, int index);
 			uint GetNumAvailableBytes(object p);
 			P<byte> GetPointerToCurrentPos(object p);
 			uint GetMatches(object p, P<uint> distances);
